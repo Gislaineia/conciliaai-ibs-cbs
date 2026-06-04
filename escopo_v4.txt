@@ -1,0 +1,423 @@
+﻿ConciliaAI
+Plataforma de Inteligência Fiscal e Contábil
+──────────────────────────────────────
+DOCUMENTO DE ESCOPO DO PROJETO
+VERSÃO 4.0 — IBS / CBS / SPED ICMS / SPED IPI
+São Paulo — Junho 2026
+
+
+1. Visão do Produto
+
+
+1.1 Definição
+ConciliaAI é uma plataforma de inteligência fiscal que captura automaticamente XMLs fiscais (NF-e, NFS-e, CT-e), classifica produtos e operações com regras parametrizadas auto-educativas, gera os blocos do SPED (PIS/COFINS, ICMS/IPI) e prepara a empresa para a apuração de IBS e CBS da reforma tributária.
+
+Não é um ERP. Não é um sistema contábil. É uma ferramenta de inteligência fiscal que elimina a dependência de grandes sistemas para a geração do SPED e a apuração dos novos tributos da reforma tributária.
+
+1.2 Problema que resolve
+Escritórios contábeis pagam valores elevados por sistemas que fazem mais do que precisam e erram no básico
+A classificação fiscal é refeita manualmente todo mês porque os cadastros não guardam o histórico de decisões
+Nenhum sistema no mercado está posicionado para apuração de IBS/CBS da reforma tributária (LC 214/2025)
+A geração dos SPEDs de ICMS/IPI exige parametrização complexa que os sistemas tradicionais não automatizam
+Clientes de pequeno e médio porte (faturamento até R$ 1,5 milhão/mês) não têm ERP real — usam soluções fragmentadas
+
+1.3 Diferenciais competitivos
+
+Diferencial
+Descrição
+Cadastro autoeducativo
+Fornecedor + NCM + CFOP + Estado = regra automática. Resolveu uma vez, não pergunta de novo. O sistema aprende com cada decisão do contador.
+SPED independente (PIS/COFINS + ICMS/IPI)
+Gera blocos do SPED EFD Contribuições e EFD ICMS/IPI diretamente do XML processado, sem dependência de sistemas tradicionais.
+Posicionamento IBS/CBS
+Primeiro sistema posicionado para apuração dos novos tributos da reforma tributária (LC 214/2025). Estrutura baseada no PIS/COFINS, com posicionamento comercial único.
+Captura via SEFAZ
+Certificado A1 + API da SEFAZ = captura automática de todas as notas emitidas e recebidas. O cliente não entrega nenhum documento.
+Motor de regras ICMS
+Parametrização automática de CST, alíquotas, ST, difal, reduções de base e benefícios fiscais por UF. Tabela CEST integrada.
+Motor de regras IPI
+Classificação automática por TIPI/NCM, CST IPI, IPI por entrada/saída, controle de isenções e não tributados.
+White label
+O escritório contábil personaliza com nome e logomarca. Vende como produto próprio ao cliente final.
+Alerta de divergência
+O que não se encaixa nas regras parametrizadas é sinalizado com indicação exata do problema. O contador resolve uma vez e o sistema grava a solução.
+
+2. Arquitetura Técnica
+
+
+2.1 Stack tecnológica
+
+Camada
+Tecnologia
+Justificativa
+Front-end
+React + TypeScript
+Framework moderno e estável para aplicações web escaláveis.
+Back-end
+Node.js
+Estável, funciona nativamente com React. Suporte a WebHook e Pooling.
+Banco de dados
+PostgreSQL (recomendado)
+Multi-tenant SaaS com isolamento por cliente. Histórico completo de regras fiscais.
+Integrações
+APIs SEFAZ + Certificado A1
+Captura direta de NF-e, NFS-e, CT-e. WebHook contínuo + Pooling como fallback.
+Tabelas fiscais
+TIPI, CEST, CFOP, CST, NCM
+Atualizadas automaticamente via API oficial ou carga periódica validada.
+IA Assistente
+Integrado (base de dados fiscal)
+Consulta e análise da base fiscal da empresa. Contextualizada por regime tributário.
+
+2.2 Mecanismos de robustez
+WebHook + Pooling (padrão de alta disponibilidade):
+WebHook: agente que fica escutando a API da SEFAZ. Quando há XML novo (emitido ou recebido), busca automaticamente.
+Pooling: fallback automático ativado caso o WebHook falhe. Garante que nenhuma nota seja perdida.
+Estrutura projetada para suportar mais de 1.000 acessos simultâneos sem degradação de performance.
+
+3. Escopo Fiscal — IBS / CBS (Reforma Tributária)
+
+
+Base legal: LC 214/2025 — Vigência plena a partir de 2033. Período de transição: 2026–2032. O ConciliaAI é o primeiro sistema posicionado para este mercado.
+
+3.1 Contexto regulatório
+IBS (Imposto sobre Bens e Serviços): substitui ICMS e ISS. Gerenciado pelo Comitê Gestor do IBS.
+CBS (Contribuição sobre Bens e Serviços): substitui PIS e COFINS. Gerenciada pela Receita Federal.
+IS (Imposto Seletivo): incide sobre bens e serviços considerados prejudiciais à saúde ou ao meio ambiente.
+Período de transição: alíquotas crescentes de 2026 a 2032. Em 2026, coexistem CBS residual, IBS teste e os tributos antigos.
+Estrutura dual: IBS e CBS têm base de cálculo idêntica e crédito financeiro amplo — princípio IVA.
+
+3.2 Funcionalidades IBS/CBS no ConciliaAI
+
+#
+Funcionalidade
+Detalhamento
+01
+Parametrização de alíquotas CBS por regime
+Alíquota CBS por NCM/CNAE/regime. Atualização automática conforme calendário de transição LC 214/2025.
+02
+Parametrização de alíquotas IBS
+Alíquota IBS estadual + municipal por operação. Suporte a alíquotas diferenciadas por UF.
+03
+Apuração CBS (substitui PIS/COFINS)
+Blocos equivalentes ao EFD Contribuições. Crédito financeiro amplo (IVA). Geração dos registros M200, M210, M600, M610 no novo modelo.
+04
+Apuração IBS
+Estrutura paralela ao CBS. Registros por competência. Consolidação para o Comitê Gestor do IBS.
+05
+Controle de créditos IBS/CBS
+Mapeamento de créditos por entrada. Diferenciação entre crédito financeiro, crédito presumido e restrições.
+06
+Benefícios fiscais e regimes especiais
+Tabela de reduções de alíquota (saúde, educação, cesta básica, agro). Atualização via regulamentação do Comitê Gestor.
+07
+Período de transição (2026–2032)
+Coexistência de PIS/COFINS legacy + CBS nova + IBS. Apuração simultânea com segregação por tributo e competência.
+08
+Relatório de exposição tributária IBS/CBS
+Simulação do impacto da reforma por empresa: comparativo PIS/COFINS atual vs. CBS futura, ICMS/ISS atual vs. IBS futuro.
+09
+Exportação de obrigações acessórias IBS/CBS
+Geração dos arquivos de entrega ao Comitê Gestor conforme layout a ser publicado (estrutura preparada para absorção imediata).
+
+4. Escopo Fiscal — SPED EFD ICMS/IPI
+
+
+Base legal: Ajuste SINIEF 02/2009 e atualizações. Obrigação: empresas do Lucro Real, Presumido e contribuintes do ICMS/IPI conforme legislação estadual.
+
+4.1 Blocos do SPED ICMS/IPI gerados pelo ConciliaAI
+
+Bloco
+Conteúdo
+Status no MVP
+Bloco 0
+Abertura, identificação, tabelas de cadastro (0000, 0005, 0150 fornecedores/clientes, 0190 unidades, 0200 produtos/NCM, 0400 tabela de NF, 0450 informações complementares, 0460 observações)
+MVP
+Bloco B
+Escrituração de ISS (opcional para estados que exigem)
+Fase 2
+Bloco C
+Documentos fiscais de entrada e saída (C100 cabeçalho NF-e, C170 itens, C190 totais por CST/CFOP/Alíquota, C500 nota de energia/telecom)
+MVP
+Bloco D
+Documentos fiscais de serviço de transporte (D100 CT-e, D190 totais)
+MVP
+Bloco E
+Apuração ICMS e IPI (E100 período, E110 apuração ICMS, E116 obrigações a recolher, E500 período IPI, E510 totais IPI por CST/CFOP/Alíquota, E520 apuração IPI, E530 ajustes)
+MVP
+Bloco G
+Controle de crédito de ICMS do ativo permanente (CIAP)
+Fase 2
+Bloco H
+Inventário físico
+Fase 2
+Bloco K
+Controle da produção e do estoque industrial
+Fora do MVP (indústria)
+Bloco 1
+Outras informações (1010 obrigações, 1100 devolução de mercadoria, 1200 crédito ICMS, 1300 movimentação de combustíveis)
+Fase 2
+Bloco 9
+Controle e encerramento (9001, 9900 totais de registros, 9999)
+MVP
+
+4.2 Motor de regras ICMS
+
+#
+Funcionalidade
+Detalhamento
+01
+Classificação automática de CST ICMS
+CST por operação: 000 a 900. Motor determina CST com base em: regime tributário + UF origem/destino + NCM + natureza da operação.
+02
+Alíquotas internas e interestaduais
+Tabela de alíquotas por UF atualizada. Diferenciação: operações internas (7%/12%/17%/18%/20%) vs. interestaduais (4%/7%/12%).
+03
+Substituição tributária (ST)
+Identificação automática de ST por NCM + UF destino. Cálculo de MVA (Margem de Valor Agregado) e IVA-ST. Tabela CEST integrada.
+04
+DIFAL (Diferencial de Alíquota)
+Cálculo de DIFAL para operações B2C interestaduais (EC 87/2015 e LC 190/2022). Partilha DIFAL durante período de transição.
+05
+Reduções de base de cálculo
+Parametrização de convênios ICMS com redução de BC por produto e UF.
+06
+Crédito de ICMS por entrada
+Apropriação de crédito conforme CST e regime. Controle de crédito por período. Identificação de vedações.
+07
+Benefícios fiscais (isenção, não incidência)
+Mapeamento de CST 040–090. Parametrização por convênio ICMS e legislação estadual.
+08
+Apuração mensal ICMS (Bloco E110)
+Saldo credor/devedor. Ajustes. Obrigações a recolher (E116). Código de receita por UF.
+
+4.3 Motor de regras IPI
+
+#
+Funcionalidade
+Detalhamento
+01
+Classificação automática de CST IPI
+CST por operação: 00–99. Motor determina CST com base em: tipo de operação + NCM (TIPI) + contribuinte/não contribuinte.
+02
+Tabela TIPI integrada
+NCM vinculado ao IPI com alíquota e enquadramento. Atualização automática conforme Decreto vigente.
+03
+IPI por entrada (crédito)
+Registro de crédito de IPI por entrada: CST 00 (tributado), 50 (saída tributada), controle de isentos e não tributados.
+04
+IPI por saída (débito)
+Cálculo de IPI na saída conforme alíquota TIPI + base de cálculo. Diferenciação: estabelecimento industrial vs. equiparado.
+05
+Apuração mensal IPI (Bloco E520)
+Totalização de débitos e créditos. Saldo para recolhimento. Ajustes de apuração.
+06
+Isenções e NT (Não Tributado)
+Parametrização de isenções por decreto e CST específico. Registro correto nos blocos sem gerar débito indevido.
+07
+Controle de estabelecimento
+Diferenciação entre industrial (contribuinte pleno), equiparado a industrial e não contribuinte. Impacto no direito ao crédito.
+
+5. Escopo Fiscal — SPED EFD Contribuições (PIS/COFINS)
+
+
+Mantido integralmente conforme escopo v3.0. O módulo PIS/COFINS é a âncora comercial do produto e a base estrutural para a migração para CBS.
+
+Bloco
+Conteúdo
+Status
+Bloco 0
+Identificação, tabelas de cadastro
+MVP
+Bloco A
+NFS-e de serviços (tomadores e prestadores)
+MVP
+Bloco C
+NF-e de mercadorias — entradas e saídas
+MVP
+Bloco D
+CT-e — serviços de transporte
+MVP
+Bloco F
+Demais documentos e operações
+Fase 2
+Bloco M
+Apuração de PIS/COFINS (M200, M210, M600, M610)
+MVP
+Bloco P
+Contribuição previdenciária (CPRB)
+Fase 2
+Bloco 1
+Controle de créditos — ativo imobilizado e outras informações
+Fase 2
+Bloco 9
+Encerramento
+MVP
+
+6. Escopo do MVP — Produto Mínimo Vendável
+
+
+6.1 Critério de pronto
+O MVP está pronto quando um escritório contábil consegue, usando apenas o ConciliaAI: (1) cadastrar empresa com certificado A1, (2) capturar XMLs automaticamente, (3) classificar operações com regras parametrizadas, (4) gerar os blocos do SPED EFD Contribuições e EFD ICMS/IPI prontos para validação, (5) visualizar a posição IBS/CBS e o impacto estimado da reforma.
+
+6.2 Funcionalidades do MVP
+
+#
+Funcionalidade
+Detalhamento
+01
+Captura automática de XML via SEFAZ
+Certificado A1 + API SEFAZ. Busca automática de NF-e, NFS-e e CT-e emitidas e recebidas. WebHook + Pooling.
+02
+Importação manual de XML em bloco
+Upload de pasta com múltiplos XMLs. Sistema verifica, parseia e cadastra automaticamente.
+03
+Cadastro automático de clientes/fornecedores
+Extração do CNPJ do XML. Criação automática com dados da Receita Federal.
+04
+Cadastro inteligente de produtos por NCM
+NCM vinculado ao TIPI e CEST. Diferenciação por tipo de uso (revenda, consumo, matéria-prima, ativo).
+05
+Motor de regras PIS/COFINS
+Variáveis: Fornecedor + NCM + CFOP + Estado + Regime. CST correto, crédito e débito. Aprende com cada resolução.
+06
+Motor de regras ICMS
+CST ICMS, alíquotas, ST, DIFAL, reduções de BC. Parametrização por UF. Auto-educativo.
+07
+Motor de regras IPI
+CST IPI por TIPI/NCM. Crédito por entrada, débito por saída. Industrial vs. equiparado.
+08
+Motor de regras IBS/CBS
+Alíquotas CBS por NCM/regime. Alíquotas IBS por UF/município. Crédito financeiro amplo. Período de transição.
+09
+Geração do SPED EFD Contribuições
+Blocos 0, A, C, D, M200, M210, M600, M610. TXT pronto para o Validador SPED.
+10
+Geração do SPED EFD ICMS/IPI
+Blocos 0, C, D, E110, E520, 9. TXT pronto para o Validador SPED.
+11
+Gestão de divergências com alerta
+Dashboard: OK, Atenção, Crítico. Indicação exata da divergência e do que precisa ser decidido.
+12
+Relatório de exposição IBS/CBS
+Simulação comparativa: carga atual (PIS/COFINS + ICMS/ISS) vs. carga futura (CBS + IBS). Por empresa e período.
+13
+Assistente de IA (consulta à base)
+Consulta inteligente: 'Qual minha apuração do NCM X no período Y?', 'Qual meu saldo credor de ICMS?'. Exporta em Excel ou texto.
+14
+White label
+Personalização de nome e logomarca por escritório contábil.
+
+6.3 Fora do MVP (fases futuras)
+Conciliação bancária e cartão corporativo (Open Finance)
+Custos fixos (concessionárias: Enel, Sabesp etc.) — depende de liberação de API
+ECD (Escrituração Contábil Digital)
+DRE e relatórios gerenciais
+IRPJ e Contribuição Social sobre o Lucro
+Folha de pagamento e eSocial
+Módulo de indústria (Bloco K, custo de transformação)
+Bloco G — CIAP (Controle do crédito de ICMS do ativo permanente)
+Geração de obrigações acessórias IBS/CBS (layout definitivo pendente de publicação)
+
+7. Estratégia Comercial
+
+
+7.1 Modelo de entrada
+
+Fase
+Produto
+Posicionamento
+Entrada
+XML + SPED EFD Contribuições + SPED ICMS/IPI + posição IBS/CBS
+Produto essencial, preço acessível, substitui sistemas tradicionais para geração dos SPEDs.
+Expansão
+Conciliação bancária, controle de custo fixo, relatórios gerenciais
+Módulos adicionais vendidos ao cliente que já usa a ferramenta SPED.
+Dominação
+ECD, DRE, IRPJ, Contribuição Social, Folha de pagamento
+Produto completo que elimina a necessidade de sistemas tradicionais.
+
+7.2 Público-alvo
+Canal: Escritórios contábeis (compram e revendem como white label)
+Cliente final: Empresas de comércio e serviços, PMEs, faturamento até R$ 1,5 milhão/mês
+Foco inicial: Revendedores (comércio — compra e vende, sem transformação)
+Argumento de urgência: reforma tributária — quem não se preparar para IBS/CBS vai ter problemas a partir de 2026
+Exclusão deliberada no MVP: indústria (Bloco K), ECD, folha de pagamento
+
+8. Fluxo Operacional do MVP
+
+
+Etapa
+Ação
+Detalhe
+1
+Cadastro da empresa
+Contador cadastra CNPJ + filiais. Insere certificado A1. Sistema ativa WebHook para SEFAZ. Define regime tributário e UF de atuação.
+2
+Captura automática
+WebHook escuta a SEFAZ. Quando há XML novo (emitido ou recebido), busca automaticamente. Pooling como fallback.
+3
+Parsing e cadastro
+Sistema parseia o XML, extrai CNPJ, NCM, CFOP, valores, CST. Cadastra automaticamente fornecedor/cliente e produto se não existirem.
+4
+Motor de regras (todos os tributos)
+Verifica: esse fornecedor + NCM + CFOP + estado + regime tem regra para PIS/COFINS, ICMS e IPI? SIM = lança automaticamente. NÃO = sinaliza como divergência.
+5
+Resolução de divergências
+Contador resolve a divergência (ex.: esse papel alumínio é revenda, não consumo — CST 50 e não 07). Sistema grava a decisão. No mês seguinte, não pergunta de novo.
+6
+Geração do SPED EFD Contribuições
+Exporta blocos 0, C, D, M200, M210, M600, M610 em TXT. Pronto para Validador PVA.
+7
+Geração do SPED EFD ICMS/IPI
+Exporta blocos 0, C, D, E (E110 ICMS + E520 IPI), 9 em TXT. Pronto para Validador SPED.
+8
+Posição IBS/CBS
+Relatório de exposição: carga atual vs. carga futura. Simulação por competência. Alerta de obrigações acessórias futuras.
+9
+Dashboard e IA
+Painel com status (OK, Atenção, Crítico). Assistente IA para consultas: 'Qual meu saldo credor de ICMS?', 'Qual minha apuração CBS estimada?'
+
+9. Modelo de Parceria
+
+
+Função
+Papel
+Responsabilidades
+Gestão comercial
+Vendas e relacionamento
+Prospecção de escritórios contábeis, apresentação comercial, relacionamento com clientes, definição de estratégia de mercado e precificação.
+Inteligência contábil e fiscal
+Regras de negócio e suporte
+Definição das regras fiscais (ICMS, IPI, PIS/COFINS, IBS, CBS), parametrização dos motores de classificação, suporte técnico-contábil para implantação, validação dos blocos do SPED.
+Desenvolvimento
+Software e infraestrutura
+Arquitetura, desenvolvimento, infraestrutura, APIs, manutenção técnica, evolução do sistema e integração com tabelas fiscais.
+
+10. Prazo e Roadmap
+
+
+Fase
+Entregáveis
+Prazo estimado
+MVP — Fase 1
+Captura XML, motor PIS/COFINS, SPED EFD Contribuições, posição CBS básica, white label
+Mês 1–3
+MVP — Fase 2
+Motor ICMS completo (ST, DIFAL, benefícios por UF), SPED ICMS/IPI (Blocos C, D, E)
+Mês 2–4
+MVP — Fase 3
+Motor IPS CBS/IBS com período de transição, relatório de exposição tributária, dashboard avançado
+Mês 3–5
+Expansão
+Conciliação bancária, CIAP (Bloco G), Inventário (Bloco H), relatórios gerenciais
+Mês 6–9
+Dominação
+ECD, DRE, IRPJ, Folha de pagamento, módulo indústria (Bloco K)
+Mês 10–12+
+
+O MVP com os três motores (PIS/COFINS + ICMS/IPI + posição IBS/CBS) pode ser entregue em até 5 meses após o início do desenvolvimento.
+
+
+ConciliaAI — Documento de Escopo v4.0 — Junho 2026
+Este documento é confidencial e destina-se exclusivamente aos participantes do projeto. Proibida reprodução sem autorização.

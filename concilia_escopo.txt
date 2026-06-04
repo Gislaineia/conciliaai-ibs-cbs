@@ -1,0 +1,270 @@
+
+========== PAGE 1 ==========
+
+ConciliaAI — Documento Confidencial — v3.0 
+ConciliaAI © 2026 — Todos os direitos reservados Confidencial — Proibida reprodução sem autorização 
+ConciliaAI 
+Plataforma de Inteligência Fiscal e Contábil 
+──────────────────────────────────── 
+DOCUMENTO DE ESCOPO DO PROJETO — VERSÃO 3.0 
+São Paulo — Maio 2026 
+ 
+1. Visão do Produto 
+Definição 
+ConciliaAI é uma plataforma de inteligência fiscal que captura automaticamente XMLs fiscais (NF-
+e, NFS -e, CT -e), classifica produtos e operações com regras parametrizadas auto -educativas, 
+gera os blocos do SPED e prepara a empresa para a apuração de IBS e CBS da reforma tributária. 
+Não é um ERP. Não é um sistema contábil. É uma ferramenta de inteligência de negócio fiscal 
+que elimina a dependência de grandes sistemas para a geração do SPED. 
+ 
+1.1 Problema que resolve 
+• Escritórios contábeis pagam valores elevados por sistemas que fazem mais do que precisam 
+e erram no básico 
+• A classificação fiscal é refeita manualmente todo mês porque os cadastros não guardam o 
+histórico de decisões 
+• Nenhum sistema no mercado está posicionado para apuração de IBS/CBS da reforma 
+tributária 
+• Clientes de pequeno e médio porte (faturamento até R$ 1,5 milhão/mês) não têm ERP real 
+— usam soluções fragmentadas 
+ 
+1.2 Diferenciais competitivos 
+Diferencial Descrição 
+Cadastro auto-
+educativo 
+Fornecedor + NCM + CFOP + Estado = regra automática. Resolveu 
+uma vez, não pergunta de novo no mês seguinte. O sistema aprende 
+com cada decisão do contador. 
+SPED independente Gera os blocos do SPED (0150, 0190, C100, D100 etc.) diretamente do 
+XML processado, sem dependência de sistemas tradicionais. 
+Posicionamento 
+IBS/CBS 
+Primeiro sistema posicionado para apuração dos novos tributos da 
+reforma tributária. A estrutura é a mesma do PIS/COFINS, mas o 
+posicionamento comercial é único no mercado. 
+
+========== PAGE 2 ==========
+
+ConciliaAI — Documento Confidencial — v3.0 
+ConciliaAI © 2026 — Todos os direitos reservados Confidencial — Proibida reprodução sem autorização 
+Captura via SEFAZ Certificado A1 + API da SEFAZ = captura automática de todas as notas 
+emitidas e recebidas. O cliente não precisa entregar nenhum 
+documento. 
+White label O escritório contábil personaliza o sistema com seu nome e logomarca. 
+Vende como produto próprio ao cliente final. 
+Alerta de divergência O que não se encaixa nas regras parametrizadas é sinalizado como 
+divergência com indicação exata do problema. O contador resolve uma 
+vez e o sistema grava a solução. 
+ 
+  
+
+========== PAGE 3 ==========
+
+ConciliaAI — Documento Confidencial — v3.0 
+ConciliaAI © 2026 — Todos os direitos reservados Confidencial — Proibida reprodução sem autorização 
+2. Arquitetura Técnica 
+2.1 Stack tecnológica 
+Camada Tecnologia Justificativa 
+Front-end React + TypeScript Framework moderno e estável para 
+aplicações web escaláveis. 
+Back-end Node.js Mais estável que PHP, funciona 
+nativamente com React. Suporte a Web 
+Hook e Pooling. 
+Banco de dados A definir (PostgreSQL 
+recomendado) 
+Avaliar modelo: SaaS multi-tenant vs. 
+base individual por cliente. 
+Integrações APIs SEFAZ + Certificado 
+A1 
+Captura direta de NF-e, NFS-e, CT-e. 
+Web Hook para escuta contínua + Pooling 
+como fallback. 
+IA Assistente integrado (base 
+de dados) 
+Consulta e análise da base de dados 
+fiscal. Treinada no contexto de cada 
+empresa. 
+ 
+2.2 Mecanismos de robustez 
+Web Hook + Pooling (padrão de alta disponibilidade) 
+Web Hook: agente que fica “escutando” a API de destino. Quando há dado novo, busca 
+automaticamente. Pooling: fallback automático que se inicia caso o Web Hook falhe, garantindo 
+que nenhuma informação seja perdida. Estrutura projetada para suportar mais de 1.000 acessos 
+simultâneos sem degradação de performance. 
+ 
+  
+
+========== PAGE 4 ==========
+
+ConciliaAI — Documento Confidencial — v3.0 
+ConciliaAI © 2026 — Todos os direitos reservados Confidencial — Proibida reprodução sem autorização 
+3. Estratégia Comercial 
+3.1 Modelo de entrada 
+A estratégia é entrar de forma discreta e cirurgíca no mercado, com um produto essencial que 
+resolve a dor mais urgente do escritório contábil: o SPED. Uma vez dentro, expandir para módulos 
+adicionais de maior valor agregado. 
+ 
+Fase comercial Produto Posicionamento 
+Entrada Ferramenta XML + SPED + apuração 
+IBS/CBS 
+Produto essencial, preço acessível, 
+substitui sistemas tradicionais para 
+geração do SPED. 
+Expansão Conciliação bancária, controle de 
+custo fixo, estoque simplificado 
+Módulos adicionais vendidos ao 
+cliente que já usa a ferramenta de 
+XML/SPED. 
+Dominação Contabilidade (ECD), DRE, IRPJ, 
+Contribuição Social, Folha de 
+pagamento 
+Produto completo que elimina a 
+necessidade de sistemas tradicionais. 
+ 
+3.2 Público-alvo 
+• Canal: Escritórios contábeis (compram e revendem como white label) 
+• Cliente final: Empresas de comércio, pequeno e médio porte, faturamento até R$ 1,5 
+milhão/mês 
+• Foco inicial: Revendedores (não indústria — compra e vende, sem transformação) 
+• Exclusão deliberada no MVP: indústria (Bloco K, custo de transformação), ECD, folha de 
+pagamento 
+ 
+  
+
+========== PAGE 5 ==========
+
+ConciliaAI — Documento Confidencial — v3.0 
+ConciliaAI © 2026 — Todos os direitos reservados Confidencial — Proibida reprodução sem autorização 
+4. Escopo do MVP — Produto Mínimo Vendável 
+Critério de pronto 
+O MVP está pronto quando um escritório contábil consegue, usando apenas o ConciliaAI: (1) 
+cadastrar uma empresa com certificado A1, (2) capturar automaticamente os XMLs da SEFAZ, (3) 
+classificar as operações com regras parametrizadas, (4) resolver divergên cias uma vez e nunca 
+mais, (5) exportar os blocos do SPED prontos para validação. 
+ 
+4.1 Funcionalidades do MVP 
+# Funcionalidade Detalhamento 
+01 Captura automática de XML 
+via SEFAZ 
+Certificado A1 da empresa + API SEFAZ. Busca 
+automática de NF-e, NFS-e e CT-e emitidas e 
+recebidas. Web Hook + Pooling como fallback. 
+02 Importação manual de XML em 
+bloco 
+Upload de pasta com múltiplos XMLs de uma vez. 
+Sistema verifica, parseia e cadastra automaticamente. 
+03 Cadastro automático de 
+clientes/fornecedores 
+Extração do CNPJ do XML. Se não existe no cadastro, 
+cria automaticamente com dados da Receita Federal. 
+04 Cadastro inteligente de 
+produtos por NCM 
+Produto cadastrado com NCM vinculado ao CISC 
+(atualização automática). Diferenciação por tipo de uso 
+(revenda, consumo, matéria-prima). 
+05 Motor de regras 
+parametrizadas (inteligência 
+de negócio) 
+Variáveis: Fornecedor + NCM + CFOP + Estado de 
+origem + Regime tributário. Satisfez as condições = 
+lança automaticamente. Não satisfez = aponta 
+divergência. Divergência resolvida = grava a solução 
+para uso futuro. 
+06 Geração dos blocos do SPED Blocos 0150, 0190, 0200, C100, C170, D100 etc. 
+Exportação em TXT pronto para o Validador SPED. 
+Inclui apuração de PIS/COFINS (e futuramente 
+IBS/CBS). 
+07 Gestão de divergências com 
+alerta 
+Dashboard com sinalização: OK, Atenção, Crítico. 
+Indica exatamente onde está a divergência e o que 
+precisa ser decidido. 
+08 Assistente de IA (consulta à 
+base) 
+Consulta inteligente à base de dados: “Qual foi minha 
+apuração do NCM X no período Y?”. Exporta resultado 
+em Excel ou texto. 
+09 White label Personalização de nome e logomarca por escritório 
+contábil. Cada cliente vê o sistema como produto do 
+seu contador. 
+ 
+4.2 Fora do MVP (fases futuras) 
+• Conciliação bancária e cartão corporativo (via Open Finance) 
+• Custos fixos (concessionárias: Enel, Sabesp etc.) — depende de liberação de API 
+• ECD (Escrituração Contábil Digital) 
+• DRE e relatórios gerenciais 
+• IRPJ e Contribuição Social sobre o Lucro 
+
+========== PAGE 6 ==========
+
+ConciliaAI — Documento Confidencial — v3.0 
+ConciliaAI © 2026 — Todos os direitos reservados Confidencial — Proibida reprodução sem autorização 
+• Folha de pagamento 
+• Módulo de indústria (Bloco K, custo de transformação) 
+ 
+  
+
+========== PAGE 7 ==========
+
+ConciliaAI — Documento Confidencial — v3.0 
+ConciliaAI © 2026 — Todos os direitos reservados Confidencial — Proibida reprodução sem autorização 
+5. Modelo de Parceria 
+5.1 Distribuição de papéis 
+Função Papel Responsabilidades 
+Gestão comercial Vendas e 
+relacionamento 
+Prospecção de escritórios contábeis, 
+apresentação comercial, relacionamento com 
+clientes, definição de estratégia de mercado. 
+Inteligência contábil Regras de negócio e 
+suporte 
+Definição das regras fiscais, parametrização 
+do motor de classificação, suporte técnico-
+contábil para implantação, validação da 
+geração do SPED. 
+Desenvolvimento Software e 
+infraestrutura 
+Arquitetura, desenvolvimento, infraestrutura, 
+APIs, manutenção técnica e evolução do 
+sistema. 
+ 
+  
+
+========== PAGE 8 ==========
+
+ConciliaAI — Documento Confidencial — v3.0 
+ConciliaAI © 2026 — Todos os direitos reservados Confidencial — Proibida reprodução sem autorização 
+6. Fluxo Operacional do MVP 
+O fluxo abaixo representa o ciclo completo de operação do ConciliaAI no dia a dia de um escritório 
+contábil: 
+Etapa Ação Detalhe 
+1 Cadastro da 
+empresa 
+Contador cadastra CNPJ + filiais. Insere certificado A1. Sistema 
+ativa Web Hook para SEFAZ. 
+2 Captura automática Web Hook escuta a SEFAZ. Quando há XML novo (emitido ou 
+recebido), busca automaticamente. Pooling como fallback. 
+3 Parsing e cadastro Sistema parseia o XML, extrai CNPJ, NCM, CFOP, valores. 
+Cadastra automaticamente fornecedor/cliente e produto se não 
+existirem. 
+4 Motor de regras Verifica: esse fornecedor + NCM + CFOP + estado já tem regra? 
+SIM = lança automaticamente. NÃO = sinaliza como divergência. 
+5 Resolução de 
+divergências 
+Contador resolve a divergência (ex.: esse papel alumínio é 
+revenda, não consumo). Sistema grava a decisão. No mês 
+seguinte, não pergunta de novo. 
+6 Geração do SPED Exporta blocos do SPED em TXT: 0150, 0190, 0200, C100, 
+C170, D100 etc. Pronto para validador. Inclui apuração 
+PIS/COFINS (IBS/CBS futuro). 
+7 Dashboard e IA Painel com status (OK, Atenção, Crítico). Assistente de IA para 
+consultas à base: “Quanto comprei do NCM X?”, “Qual minha 
+apuração no período Y?” 
+ 
+6.1 Prazo estimado do MVP 
+O MVP pode ser entregue em até 3 meses após o início do desenvolvimento. A entrega total do 
+projeto (com todos os módulos e adaptações de uso) pode levar até 1 ano. 
+ 
+ConciliaAI — Documento de Escopo v3.0 — Maio 2026 
+Este documento é confidencial e destina-se exclusivamente aos participantes do projeto. Proibida reprodução 
+sem autorização. 
+ 
