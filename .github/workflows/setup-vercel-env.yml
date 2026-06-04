@@ -1,0 +1,50 @@
+name: Configurar variaveis de ambiente na Vercel
+
+on:
+  workflow_dispatch:
+      inputs:
+            supabase_url:
+                    description: 'NEXT_PUBLIC_SUPABASE_URL'
+                            required: true
+                                  supabase_key:
+                                          description: 'SUPABASE_SERVICE_ROLE_KEY'
+                                                  required: true
+                                                        cron_secret:
+                                                                description: 'CRON_SECRET'
+                                                                        required: true
+                                                                                default: 'sefaz2026@conciliaAI'
+
+                                                                                jobs:
+                                                                                  set-env:
+                                                                                      runs-on: ubuntu-latest
+                                                                                          steps:
+                                                                                                - name: Configurar NEXT_PUBLIC_SUPABASE_URL
+                                                                                                        run: |
+                                                                                                                  curl -s -X POST "https://api.vercel.com/v10/projects/${{ secrets.VERCEL_PROJECT_ID }}/env" \
+                                                                                                                              -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+                                                                                                                                          -H "Content-Type: application/json" \
+                                                                                                                                                      -d '{"key":"NEXT_PUBLIC_SUPABASE_URL","value":"${{ github.event.inputs.supabase_url }}","type":"plain","target":["production","preview","development"]}'
+                                                                                                                                                      
+                                                                                                                                                            - name: Configurar SUPABASE_SERVICE_ROLE_KEY
+                                                                                                                                                                    run: |
+                                                                                                                                                                              curl -s -X POST "https://api.vercel.com/v10/projects/${{ secrets.VERCEL_PROJECT_ID }}/env" \
+                                                                                                                                                                                          -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+                                                                                                                                                                                                      -H "Content-Type: application/json" \
+                                                                                                                                                                                                                  -d '{"key":"SUPABASE_SERVICE_ROLE_KEY","value":"${{ github.event.inputs.supabase_key }}","type":"secret","target":["production","preview","development"]}'
+                                                                                                                                                                                                                  
+                                                                                                                                                                                                                        - name: Configurar CRON_SECRET
+                                                                                                                                                                                                                                run: |
+                                                                                                                                                                                                                                          curl -s -X POST "https://api.vercel.com/v10/projects/${{ secrets.VERCEL_PROJECT_ID }}/env" \
+                                                                                                                                                                                                                                                      -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+                                                                                                                                                                                                                                                                  -H "Content-Type: application/json" \
+                                                                                                                                                                                                                                                                              -d '{"key":"CRON_SECRET","value":"${{ github.event.inputs.cron_secret }}","type":"secret","target":["production","preview","development"]}'
+                                                                                                                                                                                                                                                                              
+                                                                                                                                                                                                                                                                                    - name: Redeploy na Vercel
+                                                                                                                                                                                                                                                                                            run: |
+                                                                                                                                                                                                                                                                                                      curl -s -X POST "https://api.vercel.com/v13/deployments" \
+                                                                                                                                                                                                                                                                                                                  -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+                                                                                                                                                                                                                                                                                                                              -H "Content-Type: application/json" \
+                                                                                                                                                                                                                                                                                                                                          -d '{"name":"conciliaai-ibs-cbs","gitSource":{"type":"github","repoId":"${{ secrets.GITHUB_REPO_ID }}","ref":"main"}}'
+                                                                                                                                                                                                                                                                                                                                          
+                                                                                                                                                                                                                                                                                                                                                - name: Concluido
+                                                                                                                                                                                                                                                                                                                                                        run: echo 'Variaveis configuradas e redeploy solicitado!'
