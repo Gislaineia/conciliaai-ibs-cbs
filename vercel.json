@@ -1,8 +1,12 @@
 {
-    "crons": [
-          {
-                  "path": "/api/sefaz/cron",
-                  "schedule": "0 * * * *"
-          }
-    ]
+      "crons": [
+              {
+                        "path": "/api/sefaz/cron",
+                        "schedule": "0 * * * *"
+              },
+              {
+                        "path": "/api/nfse/cron",
+                        "schedule": "0 */4 * * *"
+              }
+      ]
 }
