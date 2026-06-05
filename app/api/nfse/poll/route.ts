@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
   const inicio = Date.now();
   try {
     const body = await req.json();
-    const {
+    let {
       empresa_id,
       cnpj,
       pfx_base64,
@@ -66,13 +66,31 @@ export async function POST(req: NextRequest) {
       ambiente = "homologacao",
     } = body;
 
-    if (!cnpj || !pfx_base64 || !pfx_senha || !data_inicio || !data_fim) {
-      return NextResponse.json(
-        { status: "erro", mensagem: "cnpj, pfx_base64, pfx_senha, data_inicio e data_fim sao obrigatorios" },
-        { status: 400 }
-      );
-    }
-
+        if (!cnpj || !data_inicio || !data_fim) {
+                    return NextResponse.json(
+                      { status: "erro", mensagem: "cnpj, data_inicio e data_fim sao obrigatorios" },
+                      { status: 400 }
+                                );
+        }
+            // Se cert nao veio no body, buscar do Supabase
+            if (!pfx_base64 || !pfx_senha) {
+                        if (empresa_id) {
+                                      const { data: cfgCert } = await supabase
+                                        .from("captura_sefaz_config")
+                                        .select("pfx_base64, pfx_senha")
+                                        .eq("empresa_id", empresa_id)
+                                        .maybeSingle();
+                                      if (cfgCert?.pfx_base64) pfx_base64 = cfgCert.pfx_base64;
+                                      if (cfgCert?.pfx_senha) pfx_senha = cfgCert.pfx_senha;
+                        }
+                        if (!pfx_base64 || !pfx_senha) {
+                                      return NextResponse.json(
+                                        { status: "erro", mensagem: "Certificado A1 nao encontrado. Carregue o .pfx em /captura-sefaz e salve a configuracao." },
+                                        { status: 400 }
+                                                    );
+                        }
+            }
+    
     let certPem = "";
     let keyPem  = "";
     try {
