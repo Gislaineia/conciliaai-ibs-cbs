@@ -18,10 +18,18 @@ import { createClient } from "@supabase/supabase-js";
 import https from "https";
 import { MUNICIPIOS_ABRASF } from "@/lib/abrasf-municipios";
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+let _sb: any = null;
+function supabase() {
+  if (_sb) return _sb;
+  _sb = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""
   );
+  return _sb;
+}
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_", removeNSPrefix: true });
 
@@ -95,7 +103,20 @@ function montarSoap(xmlAssinado: string, versao = "2.02"): string {
 async function consultarAbrasf(
     url: string, soap: string, certPem: string, keyPem: string
   ): Promise<string> {
-    const agent = new https.Agent({ cert: certPem, key: keyPem, rejectUnauthorized: false });
+    const agent = new https.Agent({
+      cert: certPem,
+      key: keyPem,
+      rejectUnauthorized: false, // alguns municipios usam cert auto-assinado
+      minVersion: "TLSv1.2",
+      ciphers: [
+        "ECDHE-RSA-AES256-GCM-SHA384",
+        "ECDHE-RSA-AES128-GCM-SHA256",
+        "ECDHE-RSA-AES256-SHA384",
+        "ECDHE-RSA-AES128-SHA256",
+        "AES256-GCM-SHA384",
+        "AES128-GCM-SHA256",
+      ].join(":"),
+    });
     const res = await fetch(url.replace("?wsdl", ""), {
           method: "POST",
           headers: {
@@ -129,7 +150,7 @@ function extrairNfse(xmlResp: string): { chave: string; xml: string; numero: str
 // ─── Persiste no Supabase ─────────────────────────────────────────────────
 async function salvar(empresaId: string, municipioIbge: string, docs: { chave: string; xml: string; numero: string }[]) {
     for (const d of docs) {
-          await supabase.from("documentos_fiscais").upsert(
+          await supabase().from("documentos_fiscais").upsert(
                   {
                             empresa_id:   empresaId,
                             chave_acesso: `ABRASF-${municipioIbge}-${d.chave}`,

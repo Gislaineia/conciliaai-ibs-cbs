@@ -66,7 +66,20 @@ async function pollPortalNacionalRFB(cfg: any): Promise<{ capturas: number; erro
       const { certPem, keyPem } = carregarCertificado(cfg.pfx_base64, cfg.pfx_senha);
       const ambiente: "producao" | "homologacao" = cfg.ambiente ?? "homologacao";
       const base  = BASE_URL_RFB[ambiente];
-      const agent = new https.Agent({ cert: certPem, key: keyPem, rejectUnauthorized: true });
+      const agent = new https.Agent({
+        cert: certPem,
+        key: keyPem,
+        rejectUnauthorized: true,
+        minVersion: "TLSv1.2",
+        ciphers: [
+          "ECDHE-RSA-AES256-GCM-SHA384",
+          "ECDHE-RSA-AES128-GCM-SHA256",
+          "ECDHE-RSA-AES256-SHA384",
+          "ECDHE-RSA-AES128-SHA256",
+          "AES256-GCM-SHA384",
+          "AES128-GCM-SHA256",
+        ].join(":"),
+      });
       const dataFim    = new Date().toISOString().split("T")[0];
       const dataInicio = cfg.nfse_data_inicio ?? new Date(Date.now() - 86400000).toISOString().split("T")[0];
       let capturas = 0;

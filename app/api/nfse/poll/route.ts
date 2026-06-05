@@ -87,7 +87,20 @@ export async function POST(req: NextRequest) {
     }
 
     const base  = BASE_URL[ambiente as keyof typeof BASE_URL];
-    const agent = new https.Agent({ cert: certPem, key: keyPem, rejectUnauthorized: true });
+    const agent = new https.Agent({
+      cert: certPem,
+      key: keyPem,
+      rejectUnauthorized: true,
+      minVersion: "TLSv1.2",
+      ciphers: [
+        "ECDHE-RSA-AES256-GCM-SHA384",
+        "ECDHE-RSA-AES128-GCM-SHA256",
+        "ECDHE-RSA-AES256-SHA384",
+        "ECDHE-RSA-AES128-SHA256",
+        "AES256-GCM-SHA384",
+        "AES128-GCM-SHA256",
+      ].join(":"),
+    });
 
     const cnpjLimpo = cnpj.replace(/\D/g, "");
     const listUrl = `${base}/NFSe?cnpjTomador=${cnpjLimpo}&dataInicio=${data_inicio}&dataFim=${data_fim}&pagina=1`;

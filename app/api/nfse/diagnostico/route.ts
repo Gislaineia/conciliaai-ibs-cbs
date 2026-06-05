@@ -172,7 +172,20 @@ export async function POST(req: NextRequest) {
     let mtlsStatus = 0;
     let mtlsBody = "";
     try {
-      const agent = new https.Agent({ cert: certPem, key: keyPem, rejectUnauthorized: true });
+      const agent = new https.Agent({
+        cert: certPem,
+        key: keyPem,
+        rejectUnauthorized: true,
+        minVersion: "TLSv1.2",
+        ciphers: [
+          "ECDHE-RSA-AES256-GCM-SHA384",
+          "ECDHE-RSA-AES128-GCM-SHA256",
+          "ECDHE-RSA-AES256-SHA384",
+          "ECDHE-RSA-AES128-SHA256",
+          "AES256-GCM-SHA384",
+          "AES128-GCM-SHA256",
+        ].join(":"),
+      });
       const res = await fetch(`${base}/NFSe?cnpjTomador=${cnpj || "00000000000191"}&dataInicio=2026-01-01&dataFim=2026-01-02&pagina=1`, {
         method: "GET",
         // @ts-ignore

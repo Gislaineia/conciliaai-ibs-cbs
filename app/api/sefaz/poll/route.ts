@@ -68,7 +68,20 @@ async function consultarDFe(
                                                                                       </soap12:Body>
                                                                                       </soap12:Envelope>`;
 
-  const agent = new https.Agent({ cert: certPem, key: keyPem, rejectUnauthorized: true });
+  const agent = new https.Agent({
+        cert: certPem,
+        key: keyPem,
+        rejectUnauthorized: true,
+        minVersion: "TLSv1.2",
+        ciphers: [
+          "ECDHE-RSA-AES256-GCM-SHA384",
+          "ECDHE-RSA-AES128-GCM-SHA256",
+          "ECDHE-RSA-AES256-SHA384",
+          "ECDHE-RSA-AES128-SHA256",
+          "AES256-GCM-SHA384",
+          "AES128-GCM-SHA256",
+        ].join(":"),
+      });
       const res = await fetch(ENDPOINT_DFE[ambiente], {
               method: "POST",
               headers: { "Content-Type": "application/soap+xml; charset=utf-8", "SOAPAction": "" },

@@ -48,7 +48,20 @@ async function pollEmpresa(cfg: any): Promise<{ capturas: number; erros: string[
       const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
 
   while (temMais) {
-          const agent = new https.Agent({ cert: certPem, key: keyPem, rejectUnauthorized: true });
+          const agent = new https.Agent({
+            cert: certPem,
+            key: keyPem,
+            rejectUnauthorized: true,
+            minVersion: "TLSv1.2",
+            ciphers: [
+              "ECDHE-RSA-AES256-GCM-SHA384",
+              "ECDHE-RSA-AES128-GCM-SHA256",
+              "ECDHE-RSA-AES256-SHA384",
+              "ECDHE-RSA-AES128-SHA256",
+              "AES256-GCM-SHA384",
+              "AES128-GCM-SHA256",
+            ].join(":"),
+          });
           const soap = `<?xml version="1.0" encoding="UTF-8"?>
           <soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
             <soap12:Body>

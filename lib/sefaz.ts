@@ -194,18 +194,39 @@ export async function carregarCertificadoA1(
 
 // ────────────────────────────────────────────────────────────────────────────
 // Cliente SOAP mínimo com mTLS
+//
+// Importante: SEFAZ/RFB exigem TLS 1.2+ e ciphers especificos. Por padrao
+// passamos minVersion='TLSv1.2' e ciphers HIGH para evitar handshakes
+// rejeitados por algoritmos legados.
 // ────────────────────────────────────────────────────────────────────────────
 export async function soapPost(
   url: string,
   body: string,
   certPem: string,
   keyPem: string,
-  opts?: { soapAction?: string; contentType?: string; rejectUnauthorized?: boolean }
+  opts?: {
+    soapAction?: string;
+    contentType?: string;
+    rejectUnauthorized?: boolean;
+    minTlsVersion?: "TLSv1.2" | "TLSv1.3";
+  }
 ): Promise<string> {
   const agent = new https.Agent({
     cert: certPem,
     key: keyPem,
     rejectUnauthorized: opts?.rejectUnauthorized ?? true,
+    minVersion: (opts?.minTlsVersion ?? "TLSv1.2") as any,
+    // Ciphers compativeis com SEFAZ/RFB (evita falhas de cipher mismatch)
+    ciphers: [
+      "ECDHE-RSA-AES256-GCM-SHA384",
+      "ECDHE-RSA-AES128-GCM-SHA256",
+      "ECDHE-RSA-AES256-SHA384",
+      "ECDHE-RSA-AES128-SHA256",
+      "AES256-GCM-SHA384",
+      "AES128-GCM-SHA256",
+      "AES256-SHA256",
+      "AES128-SHA256",
+    ].join(":"),
   });
   const res = await fetch(url, {
     method: "POST",

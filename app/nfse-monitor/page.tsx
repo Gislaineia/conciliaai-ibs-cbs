@@ -77,6 +77,7 @@ export default function NfseMonitorPage() {
 
   // ── ABRASF (municipal) ──
   const [abrasfIbge, setAbrasfIbge] = useState("");
+  const [abrasfFiltro, setAbrasfFiltro] = useState("");
   const [abrasfInicio, setAbrasfInicio] = useState(inicioMes);
   const [abrasfFim, setAbrasfFim] = useState(hojeIso);
   const [executandoAbrasf, setExecutandoAbrasf] = useState(false);
@@ -210,16 +211,21 @@ export default function NfseMonitorPage() {
   async function executarAbrasf() {
     if (!empresa) return;
     if (!abrasfIbge) {
-      toast({ type: "error", title: "Selecione um municipio ABRASF" });
+      toast({ type: "error", title: "Selecione um municipio" });
       return;
     }
     if (!pfxBase64 || !pfxSenha) {
       toast({ type: "error", title: "Carregue o certificado .pfx e informe a senha" });
       return;
     }
+    // Roteia automaticamente para endpoint correto
+    const munSel = municipios.find((m) => m.ibge === abrasfIbge);
+    const ehSP = abrasfIbge === "3550308";
+    const endpoint = ehSP ? "/api/nfse/sp" : "/api/nfse/abrasf";
+
     setExecutandoAbrasf(true);
     try {
-      const res = await fetch("/api/nfse/abrasf", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -237,12 +243,12 @@ export default function NfseMonitorPage() {
       if (res.ok && data.status === "OK") {
         toast({
           type: "success",
-          title: `${data.municipio}: ${data.total_capturados} NFS-e`,
+          title: `${data.municipio ?? munSel?.nome}: ${data.total_capturados ?? 0} NFS-e`,
         });
       } else {
         toast({
           type: "error",
-          title: "Falha ABRASF",
+          title: "Falha",
           description: data.mensagem ?? `HTTP ${res.status}`,
         });
       }
@@ -475,27 +481,61 @@ export default function NfseMonitorPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" /> ABRASF Municipal
+            <Building2 className="h-4 w-4" /> Captura por Município
           </CardTitle>
           <CardDescription>
-            Para municípios com sistema próprio (não aderiram ao Portal Nacional).
+            Para municípios com sistema próprio (SP capital, RJ Nota Carioca, ABRASF, Brasília, etc).
+            O sistema escolhe automaticamente o conector certo (NFe-SP, Nota Carioca v1, ABRASF v2.02).
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div className="md:col-span-2">
-            <label className="text-xs text-muted-foreground">Município</label>
+          <div className="md:col-span-2 space-y-2">
+            <label className="text-xs text-muted-foreground">
+              Município ({municipios.length} disponíveis)
+            </label>
+            <Input
+              placeholder="Buscar por nome ou IBGE..."
+              value={abrasfFiltro}
+              onChange={(e) => setAbrasfFiltro(e.target.value)}
+              className="text-sm"
+            />
             <select
               value={abrasfIbge}
               onChange={(e) => setAbrasfIbge(e.target.value)}
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              size={6}
             >
               <option value="">Selecione...</option>
-              {municipios.map((m) => (
-                <option key={m.ibge} value={m.ibge}>
-                  {m.nome} - {m.uf} ({m.ibge})
-                </option>
-              ))}
+              {[...municipios]
+                .filter((m) => {
+                  const q = abrasfFiltro.trim().toLowerCase();
+                  if (!q) return true;
+                  return (
+                    m.nome.toLowerCase().includes(q) ||
+                    (m.uf ?? "").toLowerCase().includes(q) ||
+                    m.ibge.includes(q)
+                  );
+                })
+                .sort((a, b) => a.nome.localeCompare(b.nome))
+                .map((m: any) => (
+                  <option key={m.ibge} value={m.ibge}>
+                    {m.nome}
+                    {m.uf && !m.nome.includes(`- ${m.uf}`) ? ` - ${m.uf}` : ""} ({m.ibge})
+                    {m.versao?.startsWith?.("PROPRIO_") ? "  ⚙ proprio" : ""}
+                  </option>
+                ))}
             </select>
+            {abrasfIbge === "3550308" && (
+              <div className="text-xs bg-yellow-50 border border-yellow-200 p-2 rounded">
+                <strong>São Paulo capital</strong> usa schema próprio (NFe-SP). Roteado
+                automaticamente para <code>/api/nfse/sp</code>.
+              </div>
+            )}
+            {abrasfIbge === "3304557" && (
+              <div className="text-xs bg-yellow-50 border border-yellow-200 p-2 rounded">
+                <strong>Rio de Janeiro (Nota Carioca)</strong> usa ABRASF v1.00.
+              </div>
+            )}
           </div>
           <div>
             <label className="text-xs text-muted-foreground">Início</label>
@@ -515,7 +555,13 @@ export default function NfseMonitorPage() {
             className="md:col-span-4 gap-2"
           >
             <Play className="h-4 w-4" />
-            {executandoAbrasf ? "Buscando..." : "Buscar ABRASF"}
+            {executandoAbrasf
+              ? "Buscando..."
+              : abrasfIbge === "3550308"
+              ? "Buscar NFe-SP (Prefeitura SP)"
+              : abrasfIbge === "3304557"
+              ? "Buscar Nota Carioca"
+              : "Buscar NFS-e"}
           </Button>
         </CardContent>
       </Card>
