@@ -131,3 +131,6 @@ npm run start        # serve build
 npm run lint         # eslint
 npm run typecheck    # tsc --noEmit
 ```
+
+
+<!-- Deploy trigger: 2026-06-05 - fix node-forge serverExternalPackages -->
