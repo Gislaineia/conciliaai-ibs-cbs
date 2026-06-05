@@ -113,8 +113,21 @@ async function processarRetorno(
               try {
                         const buf = await gunzip(Buffer.from(doc["#text"] ?? doc, "base64"));
                         const xml = buf.toString("utf-8");
-                        const chave = xml.match(/chNFe[^>]*>([^<]{44})/)?.[1] ?? maxNSU;
-                        const schema = xml.includes("nfeProc") ? "nfeProc" : xml.includes("cteProc") ? "cteProc" : "nfeProc";
+                        // Detecta NF-e (chNFe) ou CT-e (chCTe) ou evento
+                        const chave =
+                          xml.match(/chNFe[^>]*>([^<]{44})/)?.[1] ??
+                          xml.match(/chCTe[^>]*>([^<]{44})/)?.[1] ??
+                          xml.match(/Id="(?:NFe|CTe)([0-9]{44})"/)?.[1] ??
+                          maxNSU;
+                        const schema = xml.includes("cteProc") || xml.includes("<CTe")
+                          ? "cteProc"
+                          : xml.includes("procEventoNFe") || xml.includes("procEventoCTe")
+                          ? "evento"
+                          : xml.includes("resNFe") || xml.includes("resCTe")
+                          ? "resumo"
+                          : xml.includes("nfeProc") || xml.includes("<NFe")
+                          ? "nfeProc"
+                          : "desconhecido";
                         documentos.push({ chave, schema, nsu: maxNSU, xml });
               } catch {}
       }

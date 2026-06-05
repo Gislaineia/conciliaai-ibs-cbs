@@ -117,6 +117,41 @@ export default function CapturaSefazPage() {
     }
   }
 
+  const executarTudo = useCallback(async () => {
+    if (!empresa) return;
+    setRodando(true);
+    novoLog(setLogs, "info", "Iniciando captura UNIFICADA: SEFAZ + NFS-e RFB + ABRASF...");
+    try {
+      const res = await fetch("/api/captura-tudo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ empresa_id: empresa.id, ambiente }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.mensagem ?? `HTTP ${res.status}`);
+
+      novoLog(
+        setLogs,
+        data.status === "OK" ? "ok" : data.status === "PARCIAL" ? "aviso" : "erro",
+        `${data.total_capturado} documento(s) | ${data.sucessos} fonte(s) OK / ${data.erros} ERRO em ${data.duracao_ms}ms`
+      );
+      for (const f of data.fontes ?? []) {
+        novoLog(
+          setLogs,
+          f.status === "OK" ? "ok" : "erro",
+          `${f.fonte}: ${f.status}${f.total ? ` (${f.total} doc)` : ""}${
+            f.detalhes ? " | " + String(f.detalhes).substring(0, 120) : ""
+          } [${f.duracao_ms}ms]`
+        );
+      }
+      setTotalCap((p) => p + (data.total_capturado ?? 0));
+      setUltimoStatus(`${data.total_capturado} novo(s)`);
+    } catch (e: any) {
+      novoLog(setLogs, "erro", `Falha captura unificada: ${e.message}`);
+    } finally {
+      setRodando(false);
+    }
+  }, [empresa, ambiente]);
   const executarPoll = useCallback(async () => {
     if (execRef.current || !empresa) return;
     if (!pfxBase64 || !pfxSenha) {
@@ -484,14 +519,25 @@ export default function CapturaSefazPage() {
         </button>
       </section>
 
-      <button
-        onClick={executarPoll}
-        disabled={rodando || !pfxBase64}
-        className="flex items-center gap-2 px-5 py-2.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 shadow-sm"
-      >
-        <RefreshCw className={`w-4 h-4 ${rodando ? "animate-spin" : ""}`} />
-        {rodando ? "Executando..." : "Executar polling agora"}
-      </button>
+      <div className="flex flex-wrap gap-3">
+        <button
+          onClick={executarTudo}
+          disabled={rodando || !empresa}
+          className="flex items-center gap-2 px-5 py-2.5 text-sm bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 shadow-md font-semibold"
+          title="Roda em paralelo: SEFAZ DF-e (NF-e+CT-e) + NFS-e Portal Nacional + ABRASF (Osasco, Barueri, SP) usando o certificado salvo da empresa"
+        >
+          <RefreshCw className={`w-4 h-4 ${rodando ? "animate-spin" : ""}`} />
+          {rodando ? "Capturando..." : "🚀 Buscar TUDO automaticamente"}
+        </button>
+        <button
+          onClick={executarPoll}
+          disabled={rodando || !pfxBase64}
+          className="flex items-center gap-2 px-5 py-2.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 shadow-sm"
+        >
+          <RefreshCw className={`w-4 h-4 ${rodando ? "animate-spin" : ""}`} />
+          {rodando ? "Executando..." : "Apenas DF-e SEFAZ (sessão)"}
+        </button>
+      </div>
 
       {logs.length > 0 && (
         <div className="rounded-xl border border-gray-200 overflow-hidden">

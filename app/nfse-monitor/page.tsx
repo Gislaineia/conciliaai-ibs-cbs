@@ -89,6 +89,48 @@ export default function NfseMonitorPage() {
   const [diagnosticando, setDiagnosticando] = useState(false);
   const [diagnostico, setDiagnostico] = useState<any>(null);
 
+  // ── Captura unificada ──
+  const [executandoTudo, setExecutandoTudo] = useState(false);
+  const [resultadoTudo, setResultadoTudo] = useState<any>(null);
+
+  async function executarTudo() {
+    if (!empresa) return;
+    setExecutandoTudo(true);
+    setResultadoTudo(null);
+    try {
+      const res = await fetch("/api/captura-tudo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          empresa_id: empresa.id,
+          ambiente,
+          data_inicial: rfbInicio,
+          data_final: rfbFim,
+        }),
+      });
+      const data = await res.json();
+      setResultadoTudo(data);
+      if (data.status === "OK" || data.status === "PARCIAL") {
+        toast({
+          type: "success",
+          title: `${data.total_capturado} documento(s) capturado(s)`,
+          description: `${data.sucessos} fonte(s) OK / ${data.erros} ERRO em ${data.duracao_ms}ms`,
+        });
+      } else {
+        toast({
+          type: "error",
+          title: "Falha na captura unificada",
+          description: data.mensagem,
+        });
+      }
+      carregar();
+    } catch (e: any) {
+      toast({ type: "error", title: "Erro", description: e.message });
+    } finally {
+      setExecutandoTudo(false);
+    }
+  }
+
   async function carregar() {
     if (!empresa) return;
     setLoading(true);
@@ -298,6 +340,67 @@ export default function NfseMonitorPage() {
           ))}
         </div>
       </div>
+
+      {/* Captura UNIFICADA - destaque */}
+      <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Cloud className="h-5 w-5 text-purple-600" /> Captura Automática Unificada
+          </CardTitle>
+          <CardDescription>
+            Busca em <strong>uma só ação</strong>: SEFAZ DF-e (NF-e + CT-e) + NFS-e Portal Nacional + ABRASF
+            (sede da empresa, Osasco, Barueri, SP capital). Usa o certificado A1 já salvo da empresa.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Button
+            onClick={executarTudo}
+            disabled={executandoTudo || !empresa}
+            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold gap-2"
+            size="lg"
+          >
+            <RefreshCw className={`h-5 w-5 ${executandoTudo ? "animate-spin" : ""}`} />
+            {executandoTudo ? "Capturando todas as fontes..." : "🚀 Buscar TUDO automaticamente"}
+          </Button>
+
+          {resultadoTudo && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2 text-xs">
+                <Badge variant={resultadoTudo.status === "OK" ? "success" : resultadoTudo.status === "PARCIAL" ? "outline" : "destructive"}>
+                  {resultadoTudo.status}
+                </Badge>
+                <Badge variant="outline">{resultadoTudo.total_capturado ?? 0} documentos</Badge>
+                <Badge variant="outline">{resultadoTudo.sucessos ?? 0} OK / {resultadoTudo.erros ?? 0} erro</Badge>
+                <Badge variant="outline">{resultadoTudo.duracao_ms ?? 0}ms</Badge>
+              </div>
+              <div className="space-y-1.5">
+                {(resultadoTudo.fontes ?? []).map((f: any, i: number) => (
+                  <div
+                    key={i}
+                    className={`flex items-start gap-2 p-2 rounded text-xs border ${
+                      f.status === "OK" ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"
+                    }`}
+                  >
+                    {f.status === "OK" ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                    )}
+                    <div className="flex-1">
+                      <div className="font-semibold">{f.fonte}</div>
+                      <div className="text-muted-foreground">
+                        {f.total ? `${f.total} doc(s)` : "0 doc"}
+                        {f.detalhes ? ` · ${String(f.detalhes).substring(0, 150)}` : ""}
+                      </div>
+                    </div>
+                    <div className="text-muted-foreground whitespace-nowrap">{f.duracao_ms}ms</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
