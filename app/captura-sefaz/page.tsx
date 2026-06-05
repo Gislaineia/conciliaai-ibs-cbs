@@ -203,7 +203,7 @@ export default function CapturaSefazPage() {
 
   if (!empresa) return <p className="p-8 text-gray-500">Selecione uma empresa primeiro.</p>;
   
-    const corStatus: Record<string,string> = {
+    const corStatus: {[key:string]:string} = {
           executando: "bg-blue-100 text-blue-700",
           erro:       "bg-red-100 text-red-700",
     };
