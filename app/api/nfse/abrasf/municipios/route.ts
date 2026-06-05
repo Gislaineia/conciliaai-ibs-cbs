@@ -6,7 +6,7 @@
  * GET /api/nfse/abrasf/municipios?uf=MG
  */
 import { NextRequest, NextResponse } from "next/server";
-import { MUNICIPIOS_ABRASF } from "../route";
+import { MUNICIPIOS_ABRASF } from "@/lib/abrasf-municipios";
 
 // Mapa IBGE -> UF para filtro
 const IBGE_UF: Record<string, string> = {

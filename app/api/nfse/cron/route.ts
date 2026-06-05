@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import forge from "node-forge";
 import { createClient } from "@supabase/supabase-js";
 import https from "https";
-import { MUNICIPIOS_ABRASF } from "../abrasf/route";
+import { MUNICIPIOS_ABRASF } from "@/lib/abrasf-municipios";
 import { SignedXml } from "xml-crypto";
 import { XMLParser } from "fast-xml-parser";
 
@@ -38,7 +38,17 @@ function carregarCertificado(pfxBase64: string, senha: string) {
 }
 
 function assinarXml(xml: string, keyPem: string, certPem: string): string {
-      const sig = new SignedXml({ privateKey: keyPem });
+      const x509 = certPem
+        .replace(/-----BEGIN CERTIFICATE-----/g, "")
+        .replace(/-----END CERTIFICATE-----/g, "")
+        .replace(/\n/g, "");
+      const sig = new SignedXml({
+        privateKey: keyPem,
+        canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+        signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+        getKeyInfoContent: () =>
+          `<X509Data><X509Certificate>${x509}</X509Certificate></X509Data>`,
+      } as any);
       sig.addReference({
               xpath: "//*[local-name()='ConsultarNfseEnvio']",
               transforms: [
@@ -47,16 +57,6 @@ function assinarXml(xml: string, keyPem: string, certPem: string): string {
                       ],
               digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
       });
-      sig.signingKey = keyPem;
-      sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
-      sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
-      sig.keyInfoProvider = {
-              getKeyInfo: () => `<X509Data><X509Certificate>${certPem
-                                                                    .replace(/-----BEGIN CERTIFICATE-----/g, "")
-                                                                    .replace(/-----END CERTIFICATE-----/g, "")
-                                                                    .replace(/\n/g, "")}</X509Certificate></X509Data>`,
-              getKey: () => Buffer.from(keyPem),
-      } as any;
       sig.computeSignature(xml);
       return sig.getSignedXml();
 }
@@ -77,7 +77,8 @@ async function pollPortalNacionalRFB(cfg: any): Promise<{ capturas: number; erro
   while (temMais) {
           try {
                     const url = `${base}/nfse/recebidas?cnpjTomador=${cfg.cnpj}&dataInicio=${dataInicio}&dataFim=${dataFim}&page=${page}`;
-                    const res = await fetch(url, { headers: { Accept: "application/json" }, /* @ts-ignore */ agent });
+                    // @ts-ignore — Node fetch aceita agent
+                    const res = await fetch(url, { headers: { Accept: "application/json" }, agent });
                     if (!res.ok) { erros.push(`Portal RFB HTTP ${res.status}`); break; }
                     const data = await res.json();
                     const lista: any[] = data.nfse ?? data.data ?? [];
