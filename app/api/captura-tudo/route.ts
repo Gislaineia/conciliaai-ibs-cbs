@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
     let pfx_base64: string | undefined = body.pfx_base64;
     let pfx_senha: string | undefined = body.pfx_senha;
     let codigo_municipio_ibge: string | undefined = body.codigo_municipio_ibge;
+            let uf: string | undefined = body.uf;
 
     // Datas default: ultimos 30 dias
     const hoje = new Date().toISOString().substring(0, 10);
@@ -79,15 +80,15 @@ export async function POST(req: NextRequest) {
       try {
         const { data: emp } = await supabase()
           .from("empresa")
-          .select("id, cnpj, pfx_base64, pfx_senha, ambiente, codigo_municipio_ibge")
+          .select("id, cnpj, uf, pfx_base64, pfx_senha, ambiente, codigo_municipio_ibge")
           .eq("id", empresa_id)
           .maybeSingle();
         if (emp) {
-          cnpj = cnpj ?? emp.cnpj;
-          pfx_base64 = pfx_base64 ?? pfx_base64;
-          pfx_senha = pfx_senha ?? pfx_senha;
+          cnpj = cnpj ?? emp.cnpj;            uf = uf ?? emp.uf;
+          pfx_base64 = pfx_base64 ?? emp.pfx_base64;
+          pfx_senha = pfx_senha ?? emp.pfx_senha;
           codigo_municipio_ibge =
-            codigo_municipio_ibge ?? codigo_municipio_ibge;
+            codigo_municipio_ibge ?? emp.codigo_municipio_ibge;
         }
       } catch {
         /* ignora — empresa pode nao estar no Supabase, usa dados do body */
@@ -155,6 +156,7 @@ export async function POST(req: NextRequest) {
               pfx_base64: pfx_base64,
               pfx_senha: pfx_senha,
               ambiente: ambienteEfetivo,
+                          uf: uf ?? "SP",
             });
             return {
               fonte: "SEFAZ DF-e (NF-e + CT-e)",
