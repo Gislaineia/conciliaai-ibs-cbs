@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
                         ult_nsu = "000000000000000",
                         ambiente = "homologacao",
               } = body;
-
+.from("empresa")
                 if (!cnpj) {
                                 return NextResponse.json(
                                       { status: "erro", mensagem: "cnpj eh obrigatorio" },
@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
                     if (!pfx_base64 || !pfx_senha) {
                                     if (empresa_id) {
                                                       const { data: cfgCert } = await supabase
-                                                        .from("captura_sefaz_config")
+                                                        .from("empresa")
                                                         .select("pfx_base64, pfx_senha")
                                                         .eq("empresa_id", empresa_id)
                                                         .maybeSingle();
