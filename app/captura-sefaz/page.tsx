@@ -207,7 +207,7 @@ export default function CapturaSefazPage() {
           executando: "bg-blue-100 text-blue-700",
           erro:       "bg-red-100 text-red-700",
     };
-    const corLog: Record<LogEntry["tipo"],string> = {
+    const corLog: Record<string, string> = {
           info: "text-blue-600", ok: "text-green-600", erro: "text-red-500", aviso: "text-yellow-600",
     };
   
