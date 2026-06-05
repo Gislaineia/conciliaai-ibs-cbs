@@ -201,7 +201,7 @@ export default function CapturaSefazPage() {
   const dominio = typeof window !== "undefined" ? window.location.origin : "https://seu-dominio.com";
     const webhookUrl = `${dominio}/api/sefaz/webhook`;
 
-  if (!empresa) return <p className="p-8 text-gray-500">Selecione uma empresa primeiro.</p>p>;
+  if (!empresa) return <p className="p-8 text-gray-500">Selecione uma empresa primeiro.</p>;
   
     const corStatus: Record<string,string> = {
           executando: "bg-blue-100 text-blue-700",
