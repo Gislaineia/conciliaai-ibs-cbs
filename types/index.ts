@@ -381,6 +381,8 @@ export interface Divergencia {
 export interface CapturaSefazConfig {
   id: string;
   empresa_id: string;
+    pfx_base64?: string | null;
+    pfx_senha?: string | null;
   certificado_a1_nome?: string | null;
   certificado_a1_validade?: string | null;
   certificado_a1_carregado: boolean;
