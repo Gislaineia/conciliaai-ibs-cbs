@@ -24,6 +24,7 @@ import {
   Scale,
   Search,
   GitCompare,
+  Cloud,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/lib/app-context";
@@ -55,6 +56,7 @@ const NAV_GROUPS: Array<{
     items: [
       { href: "/captura", label: "Capturar XMLs", icon: Upload },
       { href: "/captura-sefaz", label: "Captura SEFAZ", icon: Radio },
+      { href: "/nfse-monitor", label: "Monitor NFS-e Nacional", icon: Cloud },
       { href: "/consultas", label: "Consultas Fiscais", icon: Search },
       { href: "/conciliacao", label: "Conciliação", icon: GitCompare },
       { href: "/documentos", label: "Documentos", icon: FileText },

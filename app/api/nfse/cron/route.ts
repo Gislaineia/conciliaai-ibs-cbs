@@ -18,8 +18,8 @@ const supabase = createClient(
     );
 
 const BASE_URL_RFB = {
-      producao:    "https://nfse.receita.economia.gov.br/api/v1",
-      homologacao: "https://hom.nfse.receita.economia.gov.br/api/v1",
+      producao:    "https://adn.nfse.gov.br/contribuinte/v1",
+      homologacao: "https://adnh.producaorestrita.nfse.gov.br/contribuinte/v1",
 };
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_", removeNSPrefix: true });
@@ -76,7 +76,7 @@ async function pollPortalNacionalRFB(cfg: any): Promise<{ capturas: number; erro
 
   while (temMais) {
           try {
-                    const url = `${base}/nfse/recebidas?cnpjTomador=${cfg.cnpj}&dataInicio=${dataInicio}&dataFim=${dataFim}&page=${page}`;
+                    const url = `${base}/NFSe?cnpjTomador=${cfg.cnpj}&dataInicio=${dataInicio}&dataFim=${dataFim}&pagina=${page}`;
                     // @ts-ignore — Node fetch aceita agent
                     const res = await fetch(url, { headers: { Accept: "application/json" }, agent });
                     if (!res.ok) { erros.push(`Portal RFB HTTP ${res.status}`); break; }
