@@ -122,10 +122,21 @@ export default function CapturaSefazPage() {
     setRodando(true);
     novoLog(setLogs, "info", "Iniciando captura UNIFICADA: SEFAZ + NFS-e RFB + ABRASF...");
     try {
+      if (!pfxBase64 || !pfxSenha) {
+        novoLog(setLogs, "erro", "Carregue o certificado .pfx e informe a senha antes de executar.");
+        setRodando(false);
+        return;
+      }
       const res = await fetch("/api/captura-tudo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ empresa_id: empresa.id, ambiente }),
+        body: JSON.stringify({
+          empresa_id: empresa.id,
+          cnpj: (empresa as any).cnpj?.replace(/\D/g, ""),
+          pfx_base64: pfxBase64,
+          pfx_senha: pfxSenha,
+          ambiente,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.mensagem ?? `HTTP ${res.status}`);
@@ -151,7 +162,7 @@ export default function CapturaSefazPage() {
     } finally {
       setRodando(false);
     }
-  }, [empresa, ambiente]);
+  }, [empresa, ambiente, pfxBase64, pfxSenha]);
   const executarPoll = useCallback(async () => {
     if (execRef.current || !empresa) return;
     if (!pfxBase64 || !pfxSenha) {

@@ -95,6 +95,10 @@ export default function NfseMonitorPage() {
 
   async function executarTudo() {
     if (!empresa) return;
+    if (!pfxBase64 || !pfxSenha) {
+      toast({ type: "error", title: "Carregue o .pfx e informe a senha antes de executar" });
+      return;
+    }
     setExecutandoTudo(true);
     setResultadoTudo(null);
     try {
@@ -103,6 +107,9 @@ export default function NfseMonitorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           empresa_id: empresa.id,
+          cnpj: empresa.cnpj?.replace(/\D/g, ""),
+          pfx_base64: pfxBase64,
+          pfx_senha: pfxSenha,
           ambiente,
           data_inicial: rfbInicio,
           data_final: rfbFim,

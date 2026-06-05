@@ -61,13 +61,11 @@ export async function POST(req: NextRequest) {
       incluir_abrasf = true,
     } = body;
     let { data_inicial, data_final } = body;
-
-    if (!empresa_id) {
-      return NextResponse.json(
-        { status: "erro", mensagem: "empresa_id obrigatorio" },
-        { status: 400 }
-      );
-    }
+    // Aceita dados da empresa direto no body (caso nao esteja persistida no Supabase)
+    let cnpj: string | undefined = body.cnpj;
+    let pfx_base64: string | undefined = body.pfx_base64;
+    let pfx_senha: string | undefined = body.pfx_senha;
+    let codigo_municipio_ibge: string | undefined = body.codigo_municipio_ibge;
 
     // Datas default: ultimos 30 dias
     const hoje = new Date().toISOString().substring(0, 10);
@@ -76,32 +74,40 @@ export async function POST(req: NextRequest) {
       data_inicial ??
       new Date(Date.now() - 30 * 86400000).toISOString().substring(0, 10);
 
-    // Carrega empresa
-    const { data: emp } = await supabase()
-      .from("empresa")
-      .select("id, cnpj, pfx_base64, pfx_senha, ambiente, codigo_municipio_ibge")
-      .eq("id", empresa_id)
-      .maybeSingle();
-
-    if (!emp) {
-      return NextResponse.json(
-        { status: "erro", mensagem: "Empresa nao encontrada" },
-        { status: 404 }
-      );
+    // Tenta carregar empresa do Supabase (best-effort)
+    if (empresa_id) {
+      try {
+        const { data: emp } = await supabase()
+          .from("empresa")
+          .select("id, cnpj, pfx_base64, pfx_senha, ambiente, codigo_municipio_ibge")
+          .eq("id", empresa_id)
+          .maybeSingle();
+        if (emp) {
+          cnpj = cnpj ?? emp.cnpj;
+          pfx_base64 = pfx_base64 ?? pfx_base64;
+          pfx_senha = pfx_senha ?? pfx_senha;
+          codigo_municipio_ibge =
+            codigo_municipio_ibge ?? codigo_municipio_ibge;
+        }
+      } catch {
+        /* ignora — empresa pode nao estar no Supabase, usa dados do body */
+      }
     }
-    if (!emp.pfx_base64 || !emp.pfx_senha) {
+
+    if (!cnpj || !pfx_base64 || !pfx_senha) {
       return NextResponse.json(
         {
           status: "erro",
           mensagem:
-            "Empresa nao tem certificado A1 cadastrado. Acesse /captura-sefaz, carregue o .pfx e salve.",
+            "Faltam dados da empresa. Envie cnpj, pfx_base64 e pfx_senha no body, ou cadastre a empresa no Supabase.",
+          dica: "Em /captura-sefaz, carregue o .pfx e clique 'Salvar configuracao' para persistir no Supabase.",
         },
         { status: 400 }
       );
     }
 
-    const cnpjLimpo = String(emp.cnpj ?? "").replace(/\D/g, "");
-    const ambienteEfetivo = ambiente ?? emp.ambiente ?? "producao";
+    const cnpjLimpo = String(cnpj).replace(/\D/g, "");
+    const ambienteEfetivo = ambiente ?? "producao";
 
     // Defaults de municipios ABRASF: sede da empresa + comuns
     const municipiosVarrer: string[] =
@@ -110,7 +116,7 @@ export async function POST(req: NextRequest) {
         : Array.from(
             new Set(
               [
-                emp.codigo_municipio_ibge?.toString(),
+                codigo_municipio_ibge,
                 "3534401", // Osasco
                 "3505708", // Barueri
                 "3550308", // Sao Paulo capital
@@ -146,8 +152,8 @@ export async function POST(req: NextRequest) {
             const { status, data } = await chamarEndpoint("/api/sefaz/poll", {
               empresa_id,
               cnpj: cnpjLimpo,
-              pfx_base64: emp.pfx_base64,
-              pfx_senha: emp.pfx_senha,
+              pfx_base64: pfx_base64,
+              pfx_senha: pfx_senha,
               ambiente: ambienteEfetivo,
             });
             return {
@@ -178,8 +184,8 @@ export async function POST(req: NextRequest) {
             const { status, data } = await chamarEndpoint("/api/nfse/poll", {
               empresa_id,
               cnpj: cnpjLimpo,
-              pfx_base64: emp.pfx_base64,
-              pfx_senha: emp.pfx_senha,
+              pfx_base64: pfx_base64,
+              pfx_senha: pfx_senha,
               data_inicio: data_inicial,
               data_fim: data_final,
               ambiente: ambienteEfetivo,
@@ -217,8 +223,8 @@ export async function POST(req: NextRequest) {
               const { status, data } = await chamarEndpoint(path, {
                 empresa_id,
                 cnpj: cnpjLimpo,
-                pfx_base64: emp.pfx_base64,
-                pfx_senha: emp.pfx_senha,
+                pfx_base64: pfx_base64,
+                pfx_senha: pfx_senha,
                 municipio_ibge: ibge,
                 data_inicial,
                 data_final,
