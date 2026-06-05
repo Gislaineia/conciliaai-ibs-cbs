@@ -153,13 +153,13 @@ export default function CapturaSefazPage() {
       const novos: number = data.total ?? data.total_capturados ?? 0;
       setUltNSU(data.ult_nsu ?? ultNSU);
       setTotalCap((p) => p + novos);
-      setUltimoStatus(novos > 0 ? `${novos} novo(s)` : "sem novidades");
+      setUltimoStatus(novos > 0 ? `${novos} novo(s)` : "OK sem novidades");
       novoLog(
         setLogs,
-        novos > 0 ? "ok" : "info",
+        "ok",
         novos > 0
-          ? `${novos} documento(s) capturado(s). Novo NSU: ${data.ult_nsu}`
-          : `Nenhum documento novo. NSU: ${data.ult_nsu}`
+          ? `OK: ${novos} documento(s) capturado(s). Novo NSU: ${data.ult_nsu}`
+          : `OK: nenhum documento novo (sua caixa de entrada esta em dia). NSU: ${data.ult_nsu}`
       );
       if (data.tem_mais)
         novoLog(setLogs, "aviso", "Há mais documentos. Próximo ciclo continuará deste NSU.");

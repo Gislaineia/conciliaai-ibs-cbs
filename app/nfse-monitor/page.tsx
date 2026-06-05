@@ -22,6 +22,9 @@ import {
   Play,
   RefreshCw,
   Server,
+  Stethoscope,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 
 interface NfseDoc {
@@ -80,6 +83,10 @@ export default function NfseMonitorPage() {
 
   // ── Loading state ──
   const [loading, setLoading] = useState(true);
+
+  // ── Diagnostico ──
+  const [diagnosticando, setDiagnosticando] = useState(false);
+  const [diagnostico, setDiagnostico] = useState<any>(null);
 
   async function carregar() {
     if (!empresa) return;
@@ -163,6 +170,40 @@ export default function NfseMonitorPage() {
       toast({ type: "error", title: "Erro", description: e.message });
     } finally {
       setExecutandoRfb(false);
+    }
+  }
+
+  async function diagnosticar() {
+    if (!empresa) return;
+    if (!pfxBase64 || !pfxSenha) {
+      toast({ type: "error", title: "Carregue o .pfx e informe a senha antes do diagnóstico" });
+      return;
+    }
+    setDiagnosticando(true);
+    setDiagnostico(null);
+    try {
+      const res = await fetch("/api/nfse/diagnostico", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          empresa_id: empresa.id,
+          cnpj: empresa.cnpj?.replace(/\D/g, ""),
+          pfx_base64: pfxBase64,
+          pfx_senha: pfxSenha,
+          ambiente,
+        }),
+      });
+      const data = await res.json();
+      setDiagnostico(data);
+      if (data.status === "OK") {
+        toast({ type: "success", title: "Diagnóstico OK", description: data.sugestao });
+      } else {
+        toast({ type: "error", title: "Diagnóstico encontrou problemas", description: data.sugestao });
+      }
+    } catch (e: any) {
+      toast({ type: "error", title: "Erro", description: e.message });
+    } finally {
+      setDiagnosticando(false);
     }
   }
 
@@ -327,6 +368,74 @@ export default function NfseMonitorPage() {
         </CardContent>
       </Card>
 
+      {/* Diagnostico */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Stethoscope className="h-4 w-4" /> Diagnóstico de conexão
+          </CardTitle>
+          <CardDescription>
+            Antes de buscar NFS-e, valide o certificado, DNS, TLS, mTLS e adesão do CNPJ ao SNNFS-e.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Button
+            onClick={diagnosticar}
+            disabled={diagnosticando || !pfxBase64 || !pfxSenha}
+            variant="outline"
+            className="gap-2"
+          >
+            <Stethoscope className={`h-4 w-4 ${diagnosticando ? "animate-pulse" : ""}`} />
+            {diagnosticando ? "Diagnosticando..." : "Diagnosticar conexão"}
+          </Button>
+          {diagnostico && (
+            <div className="space-y-3 mt-2">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+                <Badge variant={diagnostico.status === "OK" ? "success" : "destructive"}>
+                  {diagnostico.status}
+                </Badge>
+                {diagnostico.host && <Badge variant="outline">host: {diagnostico.host}</Badge>}
+                {diagnostico.cert_subject && (
+                  <Badge variant="outline" className="truncate" title={diagnostico.cert_subject}>
+                    {diagnostico.cert_subject}
+                  </Badge>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                {(diagnostico.etapas ?? []).map((e: any, i: number) => (
+                  <div
+                    key={i}
+                    className={`flex items-start gap-2 p-2 rounded text-xs border ${
+                      e.ok
+                        ? "border-green-200 bg-green-50"
+                        : "border-red-200 bg-red-50"
+                    }`}
+                  >
+                    {e.ok ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                    )}
+                    <div className="flex-1">
+                      <div className="font-semibold">{e.nome}</div>
+                      <div className="text-muted-foreground">{e.detalhe}</div>
+                    </div>
+                    <div className="text-muted-foreground whitespace-nowrap">
+                      {e.duracao_ms}ms
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {diagnostico.sugestao && (
+                <div className="p-3 rounded bg-blue-50 border border-blue-200 text-xs">
+                  <strong>Sugestão:</strong> {diagnostico.sugestao}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* RFB Portal Nacional */}
       <Card>
         <CardHeader>
@@ -334,7 +443,7 @@ export default function NfseMonitorPage() {
             <Server className="h-4 w-4" /> Portal Nacional RFB (SNNFS-e / ADN)
           </CardTitle>
           <CardDescription>
-            Endpoint:{" "}
+            <strong>Busca todas as NFS-e recebidas em uma única chamada</strong> — o Portal Nacional consolida todos os municípios aderentes ao SNNFS-e (sem precisar entrar prefeitura por prefeitura). Endpoint:{" "}
             <code className="text-xs">
               {ambiente === "producao"
                 ? "https://adn.nfse.gov.br/contribuinte/v1"
