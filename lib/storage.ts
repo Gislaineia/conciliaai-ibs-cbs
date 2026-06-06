@@ -724,59 +724,82 @@ function loadCertLocal(empresa_id: string): { pfx_base64?: string | null; pfx_se
 }
 
 export async function getCapturaSefaz(empresa_id: string): Promise<CapturaSefazConfig | null> {
+  // localStorage é a fonte primária (contém cert + toda a config)
   const cert = loadCertLocal(empresa_id);
-  if (isSupabaseConfigured()) {
-    const sb = getSupabase();
-    const { data } = await sb
-      .from("captura_sefaz_config")
-      .select("*")
-      .eq("empresa_id", empresa_id)
-      .maybeSingle();
-    if (!data) return null;
-    // Mescla: dados de config do Supabase + certificado do localStorage
-    return {
-      ...(data as CapturaSefazConfig),
-      pfx_base64: cert.pfx_base64 ?? null,
-      pfx_senha: cert.pfx_senha ?? null,
-      certificado_a1_nome: cert.nome ?? (data as any).certificado_a1_nome ?? null,
-      certificado_a1_validade: cert.validade ?? (data as any).certificado_a1_validade ?? null,
-      certificado_a1_carregado: !!(cert.pfx_base64),
-    } as CapturaSefazConfig;
-  }
   const fromLs = readLS<CapturaSefazConfig[]>("captura_sefaz", []).find((c) => c.empresa_id === empresa_id) ?? null;
+
+  if (isSupabaseConfigured()) {
+    try {
+      const sb = getSupabase();
+      const { data } = await sb
+        .from("captura_sefaz_config")
+        .select("*")
+        .eq("empresa_id", empresa_id)
+        .maybeSingle();
+      if (data) {
+        // Supabase tem status/totais atualizados — localStorage tem cert e config local
+        return {
+          ...(data as CapturaSefazConfig),
+          ...(fromLs ?? {}),              // config local sobrescreve (tem cnpj, ambiente, etc.)
+          pfx_base64: cert.pfx_base64 ?? null,
+          pfx_senha: cert.pfx_senha ?? null,
+          certificado_a1_nome: cert.nome ?? null,
+          certificado_a1_validade: cert.validade ?? null,
+          certificado_a1_carregado: !!(cert.pfx_base64),
+          // status/totais do Supabase prevalecem sobre localStorage
+          total_capturados: (data as any).total_capturados ?? fromLs?.total_capturados ?? 0,
+          ultimo_status: (data as any).ultimo_status ?? fromLs?.ultimo_status ?? null,
+          ultima_execucao: (data as any).ultima_execucao ?? fromLs?.ultima_execucao ?? null,
+        } as CapturaSefazConfig;
+      }
+    } catch { /* Supabase indisponível — usa localStorage */ }
+  }
+
   if (!fromLs) return null;
-  return { ...fromLs, ...cert, certificado_a1_carregado: !!(cert.pfx_base64) } as CapturaSefazConfig;
+  return {
+    ...fromLs,
+    pfx_base64: cert.pfx_base64 ?? fromLs.pfx_base64 ?? null,
+    pfx_senha: cert.pfx_senha ?? fromLs.pfx_senha ?? null,
+    certificado_a1_nome: cert.nome ?? fromLs.certificado_a1_nome ?? null,
+    certificado_a1_validade: cert.validade ?? fromLs.certificado_a1_validade ?? null,
+    certificado_a1_carregado: !!(cert.pfx_base64 ?? fromLs.pfx_base64),
+  };
 }
 
 export async function saveCapturaSefaz(c: CapturaSefazConfig): Promise<CapturaSefazConfig> {
-  // Sempre salva o certificado em localStorage (independente do Supabase)
-  saveCertLocal(c.empresa_id, c.pfx_base64, c.pfx_senha, c.certificado_a1_nome, c.certificado_a1_validade);
+  const toSave = { ...c };
 
-  if (isSupabaseConfigured()) {
-    const sb = getSupabase();
-    // Remove colunas que podem não existir na tabela Supabase para não quebrar o upsert
-    const { pfx_base64, pfx_senha, certificado_a1_carregado, certificado_a1_nome, certificado_a1_validade, ...supabaseFields } = c;
-    const { data, error } = await sb
-      .from("captura_sefaz_config")
-      .upsert(supabaseFields, { onConflict: "empresa_id" })
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
-    return {
-      ...(data as CapturaSefazConfig),
-      pfx_base64: c.pfx_base64 ?? null,
-      pfx_senha: c.pfx_senha ?? null,
-      certificado_a1_nome: c.certificado_a1_nome ?? null,
-      certificado_a1_validade: c.certificado_a1_validade ?? null,
-      certificado_a1_carregado: !!(c.pfx_base64),
-    };
-  }
+  // 1. Sempre salva TUDO em localStorage (fonte primária — nunca falha)
+  saveCertLocal(c.empresa_id, c.pfx_base64, c.pfx_senha, c.certificado_a1_nome, c.certificado_a1_validade);
   const all = readLS<CapturaSefazConfig[]>("captura_sefaz", []);
   const idx = all.findIndex((x) => x.empresa_id === c.empresa_id);
-  const toSave = { ...c, id: c.id || (idx >= 0 ? all[idx].id : uuid()) };
+  toSave.id = c.id || (idx >= 0 ? all[idx].id : uuid());
   if (idx >= 0) all[idx] = toSave;
   else all.push(toSave);
   writeLS("captura_sefaz", all);
+
+  // 2. Tenta sincronizar com Supabase — silencioso se falhar (schema pode não ter todas as colunas)
+  if (isSupabaseConfigured()) {
+    try {
+      const sb = getSupabase();
+      // Envia apenas colunas garantidamente presentes na tabela original
+      const safeForSupabase = {
+        id: toSave.id,
+        empresa_id: c.empresa_id,
+        modo: c.modo,
+        webhook_url: c.webhook_url ?? null,
+        webhook_ativo: c.webhook_ativo,
+        pooling_ativo: c.pooling_ativo,
+        pooling_intervalo_min: c.pooling_intervalo_min,
+        ultima_execucao: c.ultima_execucao ?? null,
+        ultimo_status: c.ultimo_status ?? null,
+        ultimo_erro: c.ultimo_erro ?? null,
+        total_capturados: c.total_capturados,
+      };
+      await sb.from("captura_sefaz_config").upsert(safeForSupabase, { onConflict: "empresa_id" });
+    } catch { /* Supabase sem as colunas ou indisponível — dados já estão em localStorage */ }
+  }
+
   return toSave;
 }
 
