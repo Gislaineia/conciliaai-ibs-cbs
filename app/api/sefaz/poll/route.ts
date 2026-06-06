@@ -6,7 +6,7 @@ import zlib from "zlib";
 import { promisify } from "util";
 import https from "https";
 
-const gunzip = promisify(zlib.gunzip);h
+const gunzip = promisify(zlib.gunzip);
 
 const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
