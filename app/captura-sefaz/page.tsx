@@ -96,6 +96,8 @@ export default function CapturaSefazPage() {
         certificado_a1_nome: pfxNome,
         certificado_a1_validade: pfxVal || null,
         certificado_a1_carregado: !!pfxBase64,
+                    pfx_base64: pfxBase64 ?? undefined,
+                    pfx_senha: pfxSenha || undefined,
         webhook_ativo: webhookAtivo,
         pooling_ativo: pollingAtivo,
         pooling_intervalo_min: intervalo,
