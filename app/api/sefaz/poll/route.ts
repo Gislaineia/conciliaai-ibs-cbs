@@ -38,6 +38,38 @@ function carregarCertificado(pfxBase64: string, senha: string) {
       };
 }
 
+// httpsPost usa node:https diretamente — fetch nativo do Node 18+ não suporta o parâmetro agent
+// necessário para mTLS (certificado A1 como client certificate)
+function httpsPost(
+  url: string,
+  body: string,
+  headers: Record<string, string>,
+  agent: https.Agent
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const bodyBuf = Buffer.from(body, "utf-8");
+    const req = https.request(
+      {
+        hostname: parsed.hostname,
+        port: parseInt(parsed.port || "443"),
+        path: parsed.pathname + (parsed.search ?? ""),
+        method: "POST",
+        agent,
+        headers: { ...headers, "Content-Length": bodyBuf.length },
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (c: Buffer) => chunks.push(c));
+        res.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+      }
+    );
+    req.on("error", reject);
+    req.write(bodyBuf);
+    req.end();
+  });
+}
+
 async function consultarDFe(
       cnpj: string,
       uf: string,
@@ -51,45 +83,45 @@ async function consultarDFe(
       const cUFAutor = UF_COD[uf?.toUpperCase()] ?? "35";
 
   const soapEnvelope = `<?xml version="1.0" encoding="UTF-8"?>
-  <soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-      xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-        <soap12:Body>
-            <nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
-                  <nfeDadosMsg>
-                          <distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
-                                    <tpAmb>${tpAmb}</tpAmb>
-                                              <cUFAutor>${cUFAutor}</cUFAutor>
-                                                        <CNPJ>${cnpj}</CNPJ>
-                                                                  <distNSU><ultNSU>${nsuPad}</ultNSU></distNSU>
-                                                                          </distDFeInt>
-                                                                                </nfeDadosMsg>
-                                                                                    </nfeDistDFeInteresse>
-                                                                                      </soap12:Body>
-                                                                                      </soap12:Envelope>`;
+<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
+  <soap12:Body>
+    <nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
+      <nfeDadosMsg>
+        <distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
+          <tpAmb>${tpAmb}</tpAmb>
+          <cUFAutor>${cUFAutor}</cUFAutor>
+          <CNPJ>${cnpj}</CNPJ>
+          <distNSU><ultNSU>${nsuPad}</ultNSU></distNSU>
+        </distDFeInt>
+      </nfeDadosMsg>
+    </nfeDistDFeInteresse>
+  </soap12:Body>
+</soap12:Envelope>`;
 
   const agent = new https.Agent({
-        cert: certPem,
-        key: keyPem,
-        rejectUnauthorized: true,
-        minVersion: "TLSv1.2",
-        ciphers: [
-          "ECDHE-RSA-AES256-GCM-SHA384",
-          "ECDHE-RSA-AES128-GCM-SHA256",
-          "ECDHE-RSA-AES256-SHA384",
-          "ECDHE-RSA-AES128-SHA256",
-          "AES256-GCM-SHA384",
-          "AES128-GCM-SHA256",
-        ].join(":"),
-      });
-      const res = await fetch(ENDPOINT_DFE[ambiente], {
-              method: "POST",
-              headers: { "Content-Type": "application/soap+xml; charset=utf-8", "SOAPAction": "" },
-              body: soapEnvelope,
-              // @ts-ignore
-              agent,
-      });
-      return res.text();
+    cert: certPem,
+    key: keyPem,
+    rejectUnauthorized: true,
+    minVersion: "TLSv1.2",
+    ciphers: [
+      "ECDHE-RSA-AES256-GCM-SHA384",
+      "ECDHE-RSA-AES128-GCM-SHA256",
+      "ECDHE-RSA-AES256-SHA384",
+      "ECDHE-RSA-AES128-SHA256",
+      "AES256-GCM-SHA384",
+      "AES128-GCM-SHA256",
+    ].join(":"),
+  });
+
+  // Usa httpsPost (node:https) em vez de fetch() — fetch nativo não propaga o agent mTLS
+  return httpsPost(
+    ENDPOINT_DFE[ambiente],
+    soapEnvelope,
+    { "Content-Type": "application/soap+xml; charset=utf-8", SOAPAction: "" },
+    agent
+  );
 }
 
 async function processarRetorno(

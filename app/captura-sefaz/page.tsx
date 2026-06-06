@@ -55,25 +55,32 @@ export default function CapturaSefazPage() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const execRef = useRef(false);
 
-  // ── Carrega configuração persistida ──
+  // ── Carrega configuração persistida (incluindo certificado salvo) ──
   useEffect(() => {
     if (!empresa) return;
     (async () => {
       const c = await getCapturaSefaz(empresa.id);
       if (!c) return;
-      setCnpj((c as any).cnpj ?? empresa.cnpj ?? "");
-      setModo((c.modo as any) ?? "AMBOS");
+      setCnpj(c.cnpj ?? empresa.cnpj ?? "");
+      setModo(c.modo ?? "AMBOS");
       setWebhookAtivo(c.webhook_ativo ?? false);
       setPollingAtivo(c.pooling_ativo ?? false);
       setIntervalo(c.pooling_intervalo_min ?? 60);
-      setAmbiente(((c as any).ambiente as any) ?? "homologacao");
-      setNfseAtivo((c as any).nfse_ativo ?? false);
-      setUltNSU((c as any).ult_nsu ?? "000000000000000");
+      setAmbiente(c.ambiente ?? "homologacao");
+      setNfseAtivo(c.nfse_ativo ?? false);
+      setUltNSU(c.ult_nsu ?? "000000000000000");
       setTotalCap(c.total_capturados ?? 0);
       setPfxVal(c.certificado_a1_validade ?? "");
-      setPfxNome(
-        c.certificado_a1_nome ? `${c.certificado_a1_nome} (carregado)` : "Nenhum ficheiro selecionado"
-      );
+      // Restaura o certificado salvo — resolve o problema de sumir ao trocar de página
+      if (c.pfx_base64) {
+        setPfxBase64(c.pfx_base64);
+        setPfxNome(c.certificado_a1_nome ?? "Certificado carregado");
+      } else {
+        setPfxNome(
+          c.certificado_a1_nome ? `${c.certificado_a1_nome} (sem conteúdo — recarregue)` : "Nenhum ficheiro selecionado"
+        );
+      }
+      if (c.pfx_senha) setPfxSenha(c.pfx_senha);
     })();
   }, [empresa?.id]);
 
@@ -82,7 +89,33 @@ export default function CapturaSefazPage() {
     if (!f) return;
     setPfxNome(f.name);
     const r = new FileReader();
-    r.onload = () => setPfxBase64(((r.result as string) || "").split(",")[1] ?? null);
+    r.onload = async () => {
+      const base64 = ((r.result as string) || "").split(",")[1] ?? null;
+      setPfxBase64(base64);
+      // Auto-salva imediatamente para não perder ao trocar de página
+      if (empresa && base64) {
+        try {
+          await saveCapturaSefaz({
+            id: empresa.id,
+            empresa_id: empresa.id,
+            certificado_a1_nome: f.name,
+            certificado_a1_validade: pfxVal || null,
+            certificado_a1_carregado: true,
+            webhook_ativo: webhookAtivo,
+            pooling_ativo: pollingAtivo,
+            pooling_intervalo_min: intervalo,
+            modo,
+            total_capturados: totalCap,
+            pfx_base64: base64,
+            pfx_senha: pfxSenha || null,
+            cnpj,
+            ambiente,
+            nfse_ativo: nfseAtivo,
+            ult_nsu: ultNSU,
+          });
+        } catch { /* falha silenciosa — usuário pode salvar manualmente */ }
+      }
+    };
     r.readAsDataURL(f);
   }
 
@@ -93,7 +126,7 @@ export default function CapturaSefazPage() {
       await saveCapturaSefaz({
         id: empresa.id,
         empresa_id: empresa.id,
-        certificado_a1_nome: pfxNome,
+        certificado_a1_nome: pfxNome !== "Nenhum ficheiro selecionado" ? pfxNome : null,
         certificado_a1_validade: pfxVal || null,
         certificado_a1_carregado: !!pfxBase64,
                     pfx_base64: pfxBase64 ?? undefined,
@@ -103,14 +136,14 @@ export default function CapturaSefazPage() {
         pooling_intervalo_min: intervalo,
         modo,
         total_capturados: totalCap,
-        // campos extras (migrações)
-        ...({
-          cnpj,
-          ambiente,
-          nfse_ativo: nfseAtivo,
-          ult_nsu: ultNSU,
-        } as any),
-      } as any);
+        // Salva conteúdo do certificado para persistir entre páginas
+        pfx_base64: pfxBase64 ?? null,
+        pfx_senha: pfxSenha || null,
+        cnpj,
+        ambiente,
+        nfse_ativo: nfseAtivo,
+        ult_nsu: ultNSU,
+      });
       novoLog(setLogs, "ok", "Configuração salva com sucesso.");
     } catch (e: any) {
       novoLog(setLogs, "erro", `Erro ao salvar: ${e.message}`);

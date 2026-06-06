@@ -37,6 +37,33 @@ const BASE_URL = {
   homologacao: "https://adnh.producaorestrita.nfse.gov.br/contribuinte/v1",
 };
 
+// Usa node:https em vez de fetch() para garantir que o certificado A1 seja enviado via mTLS.
+// O fetch nativo do Node.js 18+ ignora o parâmetro agent, causando HTTP 496 (cert required).
+function httpsGet(url: string, agent: https.Agent): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const req = https.request(
+      {
+        hostname: parsed.hostname,
+        port: parseInt(parsed.port || "443"),
+        path: parsed.pathname + (parsed.search ?? ""),
+        method: "GET",
+        agent,
+        headers: { Accept: "application/json" },
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (c: Buffer) => chunks.push(c));
+        res.on("end", () =>
+          resolve({ status: res.statusCode ?? 0, body: Buffer.concat(chunks).toString("utf-8") })
+        );
+      }
+    );
+    req.on("error", reject);
+    req.end();
+  });
+}
+
 function carregarCertificado(pfxBase64: string, senha: string) {
   const pfxDer  = forge.util.decode64(pfxBase64);
   const pfxAsn1 = forge.asn1.fromDer(pfxDer);
@@ -123,20 +150,20 @@ export async function POST(req: NextRequest) {
     const cnpjLimpo = cnpj.replace(/\D/g, "");
     const listUrl = `${base}/NFSe?cnpjTomador=${cnpjLimpo}&dataInicio=${data_inicio}&dataFim=${data_fim}&pagina=1`;
 
-    let listRes: Response;
+    // Usa httpsGet com agent mTLS — fetch nativo do Node 18+ não envia o certificado client
+    // causando HTTP 496 (SSL Certificate Required) no portal da RFB
+    let listStatus: number;
+    let listBody: string;
     try {
-      listRes = await fetch(listUrl, {
-        headers: { Accept: "application/json" },
-        // @ts-ignore — Node fetch aceita agent
-        agent,
-      });
+      const resp = await httpsGet(listUrl, agent);
+      listStatus = resp.status;
+      listBody = resp.body;
     } catch (e: any) {
-      // fetch failed = TLS/DNS/timeout — devolve mensagem clara
       const msg = String(e?.cause?.code ?? e?.code ?? e?.message ?? e);
       return NextResponse.json(
         {
           status: "erro",
-          mensagem: `Falha de rede ao chamar ${listUrl}: ${msg}. Verifique se o certificado A1 esta valido, o ambiente (homologacao/producao) e se ha conectividade ao Portal Nacional NFS-e (adn.nfse.gov.br).`,
+          mensagem: `Falha de rede ao chamar ${listUrl}: ${msg}. Verifique se o certificado A1 está válido, o ambiente (homologacao/producao) e a conectividade com adn.nfse.gov.br.`,
           url_consultada: listUrl,
           ambiente,
           duracao_ms: Date.now() - inicio,
@@ -145,13 +172,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!listRes.ok) {
-      const txt = await listRes.text();
+    if (listStatus < 200 || listStatus >= 300) {
       return NextResponse.json(
         {
           status: "erro",
-          mensagem: `Portal Nacional NFS-e respondeu HTTP ${listRes.status}`,
-          detalhe: txt.substring(0, 1000),
+          mensagem: `Portal Nacional NFS-e respondeu HTTP ${listStatus}`,
+          detalhe: listBody.substring(0, 1000),
           url_consultada: listUrl,
           ambiente,
         },
@@ -159,7 +185,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const lista = await listRes.json();
+    let lista: any;
+    try { lista = JSON.parse(listBody); } catch { lista = {}; }
     const nfses: any[] = lista?.nfse ?? lista?.dados ?? lista?.NFSe ?? lista?.lista ?? [];
     const salvos: string[] = [];
     const erros: string[] = [];
@@ -168,16 +195,12 @@ export async function POST(req: NextRequest) {
       const chave = nfse.chaveAcesso ?? nfse.chaveNFSe ?? nfse.numero ?? String(Math.random());
       try {
         const xmlUrl = `${base}/NFSe/${chave}/xml`;
-        const xmlRes = await fetch(xmlUrl, {
-          headers: { Accept: "application/xml" },
-          // @ts-ignore
-          agent,
-        });
-        if (!xmlRes.ok) {
+        const xmlRes = await httpsGet(xmlUrl, agent);
+        if (xmlRes.status < 200 || xmlRes.status >= 300) {
           erros.push(`${chave}: HTTP ${xmlRes.status}`);
           continue;
         }
-        const xml = await xmlRes.text();
+        const xml = xmlRes.body;
 
         await supabase().from("documentos_fiscais").upsert(
           {

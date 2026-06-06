@@ -386,12 +386,20 @@ export interface CapturaSefazConfig {
   certificado_a1_nome?: string | null;
   certificado_a1_validade?: string | null;
   certificado_a1_carregado: boolean;
+  // Certificado salvo localmente para sobreviver à troca de página
+  pfx_base64?: string | null;
+  pfx_senha?: string | null;
+  // Configurações extras
+  cnpj?: string | null;
+  ambiente?: "producao" | "homologacao" | null;
+  ult_nsu?: string | null;
+  nfse_ativo?: boolean | null;
   webhook_url?: string | null;
   webhook_ativo: boolean;
   pooling_ativo: boolean;
-  pooling_intervalo_min: number;     // em minutos
+  pooling_intervalo_min: number;
   ultima_execucao?: string | null;
-  ultimo_status?: string | null;     // ok | erro
+  ultimo_status?: string | null;
   ultimo_erro?: string | null;
   total_capturados: number;
   modo: "WEBHOOK" | "POOLING" | "AMBOS";

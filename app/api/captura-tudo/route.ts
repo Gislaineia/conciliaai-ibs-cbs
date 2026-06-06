@@ -84,7 +84,8 @@ export async function POST(req: NextRequest) {
           .eq("id", empresa_id)
           .maybeSingle();
         if (emp) {
-          cnpj = cnpj ?? emp.cnpj;            uf = uf ?? emp.uf;
+          cnpj = cnpj ?? emp.cnpj;
+          uf = uf ?? emp.uf;
           pfx_base64 = pfx_base64 ?? emp.pfx_base64;
           pfx_senha = pfx_senha ?? emp.pfx_senha;
           codigo_municipio_ibge =
