@@ -15,9 +15,9 @@
  *     (ver /api/nfse/abrasf).
  */
 import { NextRequest, NextResponse } from "next/server";
-import forge from "node-forge";
 import { createClient } from "@supabase/supabase-js";
 import https from "https";
+import tls from "tls";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -37,8 +37,18 @@ const BASE_URL = {
   homologacao: "https://adnh.producaorestrita.nfse.gov.br/contribuinte/v1",
 };
 
-// Usa node:https em vez de fetch() para garantir que o certificado A1 seja enviado via mTLS.
-// O fetch nativo do Node.js 18+ ignora o parâmetro agent, causando HTTP 496 (cert required).
+// Valida o PFX via OpenSSL — mais robusto que node-forge para certs ICP-Brasil com SHA-256 MAC.
+function validarPfx(pfxBase64: string, senha: string): Buffer {
+  const pfxBuf = Buffer.from(pfxBase64, "base64");
+  try {
+    tls.createSecureContext({ pfx: pfxBuf, passphrase: senha });
+  } catch (e: any) {
+    throw new Error(`Senha incorreta ou certificado inválido: ${e.message}`);
+  }
+  return pfxBuf;
+}
+
+// Usa node:https em vez de fetch() — fetch nativo não propaga o agent mTLS.
 function httpsGet(url: string, agent: https.Agent): Promise<{ status: number; body: string }> {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
@@ -64,20 +74,6 @@ function httpsGet(url: string, agent: https.Agent): Promise<{ status: number; bo
   });
 }
 
-function carregarCertificado(pfxBase64: string, senha: string) {
-  const pfxDer  = forge.util.decode64(pfxBase64);
-  const pfxAsn1 = forge.asn1.fromDer(pfxDer);
-  const pfx     = forge.pkcs12.pkcs12FromAsn1(pfxAsn1, senha);
-  const certBag = pfx.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag]?.[0];
-  const keyBag  = pfx.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag })[forge.pki.oids.pkcs8ShroudedKeyBag]?.[0];
-  if (!certBag?.cert || !keyBag?.key) {
-    throw new Error("Certificado A1 invalido: bag cert/key ausente. Confira PFX e senha.");
-  }
-  return {
-    certPem: forge.pki.certificateToPem(certBag.cert),
-    keyPem:  forge.pki.privateKeyToPem(keyBag.key as any),
-  };
-}
 
 export async function POST(req: NextRequest) {
   const inicio = Date.now();
@@ -93,48 +89,47 @@ export async function POST(req: NextRequest) {
       ambiente = "homologacao",
     } = body;
 
-        if (!cnpj || !data_inicio || !data_fim) {
-                    return NextResponse.json(
-                      { status: "erro", mensagem: "cnpj, data_inicio e data_fim sao obrigatorios" },
-                      { status: 400 }
-                                );
-        }
-            // Se cert nao veio no body, buscar do Supabase
-            if (!pfx_base64 || !pfx_senha) {
-                        if (empresa_id) {
-                                      const { data: cfgCert } = await supabase
-                                        .from("empresa")
-                                        .select("pfx_base64, pfx_senha")
-                                        .eq("id", empresa_id)
-                                        .maybeSingle();
-                                      if (cfgCert?.pfx_base64) pfx_base64 = cfgCert.pfx_base64;
-                                      if (cfgCert?.pfx_senha) pfx_senha = cfgCert.pfx_senha;
-                        }
-                        if (!pfx_base64 || !pfx_senha) {
-                                      return NextResponse.json(
-                                        { status: "erro", mensagem: "Certificado A1 nao encontrado. Carregue o .pfx em /captura-sefaz e salve a configuracao." },
-                                        { status: 400 }
-                                                    );
-                        }
-            }
-    
-    let certPem = "";
-    let keyPem  = "";
+    if (!cnpj || !data_inicio || !data_fim) {
+      return NextResponse.json(
+        { status: "erro", mensagem: "cnpj, data_inicio e data_fim sao obrigatorios" },
+        { status: 400 }
+      );
+    }
+
+    // Fallback: busca cert do Supabase se não veio no body
+    if (!pfx_base64 || !pfx_senha) {
+      if (empresa_id) {
+        const { data: cfg } = await supabase()
+          .from("captura_sefaz_config")
+          .select("pfx_base64, pfx_senha")
+          .eq("empresa_id", empresa_id)
+          .maybeSingle();
+        if (cfg?.pfx_base64) pfx_base64 = cfg.pfx_base64;
+        if (cfg?.pfx_senha) pfx_senha = cfg.pfx_senha;
+      }
+      if (!pfx_base64 || !pfx_senha) {
+        return NextResponse.json(
+          { status: "erro", mensagem: "Certificado A1 nao encontrado. Carregue o .pfx em /captura-sefaz e salve a configuracao." },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Valida via OpenSSL (suporta SHA-256 MAC e PBES2 — mais robusto que node-forge)
+    let pfxBuf: Buffer;
     try {
-      const c = carregarCertificado(pfx_base64, pfx_senha);
-      certPem = c.certPem;
-      keyPem  = c.keyPem;
+      pfxBuf = validarPfx(pfx_base64, pfx_senha);
     } catch (e: any) {
       return NextResponse.json(
-        { status: "erro", mensagem: `Certificado A1 invalido: ${e.message}` },
+        { status: "erro", mensagem: `Certificado A1 invalido: ${e.message}. Verifique a senha e recarregue o .pfx em /captura-sefaz.` },
         { status: 400 }
       );
     }
 
     const base  = BASE_URL[ambiente as keyof typeof BASE_URL];
     const agent = new https.Agent({
-      cert: certPem,
-      key: keyPem,
+      pfx: pfxBuf,
+      passphrase: pfx_senha,
       rejectUnauthorized: true,
       minVersion: "TLSv1.2",
       ciphers: [

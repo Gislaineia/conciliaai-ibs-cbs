@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import forge from "node-forge";
 import { XMLParser } from "fast-xml-parser";
 import { createClient } from "@supabase/supabase-js";
 import zlib from "zlib";
 import { promisify } from "util";
 import https from "https";
+import tls from "tls";
 
 const gunzip = promisify(zlib.gunzip);
 
@@ -26,16 +26,16 @@ const ENDPOINT_DFE = {
       homologacao: "https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx",
 };
 
-function carregarCertificado(pfxBase64: string, senha: string) {
-      const pfxDer = forge.util.decode64(pfxBase64);
-      const pfxAsn1 = forge.asn1.fromDer(pfxDer);
-      const pfx = forge.pkcs12.pkcs12FromAsn1(pfxAsn1, senha);
-      const certBag = pfx.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag]![0];
-      const keyBag = pfx.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag })[forge.pki.oids.pkcs8ShroudedKeyBag]![0];
-      return {
-              certPem: forge.pki.certificateToPem(certBag.cert!),
-              keyPem: forge.pki.privateKeyToPem(keyBag.key as forge.pki.rsa.PrivateKey),
-      };
+// Valida o PFX usando OpenSSL nativo (suporta todos os algoritmos modernos ICP-Brasil).
+// Mais robusto que node-forge para PFX com SHA-256 MAC ou PBES2/AES.
+function validarPfx(pfxBase64: string, senha: string): Buffer {
+  const pfxBuf = Buffer.from(pfxBase64, "base64");
+  try {
+    tls.createSecureContext({ pfx: pfxBuf, passphrase: senha });
+  } catch (e: any) {
+    throw new Error(`Senha incorreta ou certificado inválido: ${e.message}`);
+  }
+  return pfxBuf;
 }
 
 // httpsPost usa node:https diretamente — fetch nativo do Node 18+ não suporta o parâmetro agent
@@ -74,8 +74,8 @@ async function consultarDFe(
       cnpj: string,
       uf: string,
       ultNSU: string,
-      certPem: string,
-      keyPem: string,
+      pfxBuf: Buffer,
+      pfxSenha: string,
       ambiente: "producao" | "homologacao"
     ): Promise<string> {
       const tpAmb = ambiente === "producao" ? "1" : "2";
@@ -100,9 +100,10 @@ async function consultarDFe(
   </soap12:Body>
 </soap12:Envelope>`;
 
+  // Usa pfx+passphrase via OpenSSL (mais robusto que node-forge para certs ICP-Brasil modernos)
   const agent = new https.Agent({
-    cert: certPem,
-    key: keyPem,
+    pfx: pfxBuf,
+    passphrase: pfxSenha,
     rejectUnauthorized: true,
     minVersion: "TLSv1.2",
     ciphers: [
@@ -115,7 +116,6 @@ async function consultarDFe(
     ].join(":"),
   });
 
-  // Usa httpsPost (node:https) em vez de fetch() — fetch nativo não propaga o agent mTLS
   return httpsPost(
     ENDPOINT_DFE[ambiente],
     soapEnvelope,
@@ -188,72 +188,69 @@ async function salvarNoSupabase(
 }
 
 export async function POST(req: NextRequest) {
-      try {
-              const body = await req.json();
-              let {
-                        empresa_id,
-                        cnpj,
-                        uf = "SP",
-                        pfx_base64,
-                        pfx_senha,
-                        ult_nsu = "000000000000000",
-                        ambiente = "homologacao",
-              } = body;
-.from("empresa")
-                if (!cnpj) {
-                                return NextResponse.json(
-                                      { status: "erro", mensagem: "cnpj eh obrigatorio" },
-                                      { status: 400 }
-                                                );
-                }
-                    // Se cert nao veio no body, buscar do Supabase
-                    if (!pfx_base64 || !pfx_senha) {
-                                    if (empresa_id) {
-                                                      const { data: cfgCert } = await supabase
-                                                        .from("empresa")
-                                                        .select("pfx_base64, pfx_senha")
-                                                        .eq("id", empresa_id), empresa_id)
-                                                        .maybeSingle();
-                                                      if (cfgCert?.pfx_base64) pfx_base64 = cfgCert.pfx_base64;
-                                                      if (cfgCert?.pfx_senha) pfx_senha = cfgCert.pfx_senha;
-                                    }
-                                    if (!pfx_base64 || !pfx_senha) {
-                                                      return NextResponse.json(
-                                                            { status: "erro", mensagem: "Certificado A1 nao encontrado. Carregue o .pfx em /captura-sefaz e salve a configuracao." },
-                                                            { status: 400 }
-                                                                        );
-                                    }
-                    }
-            
-        const { certPem, keyPem } = carregarCertificado(pfx_base64, pfx_senha);
-              let ultNSU = ult_nsu;
-              let temMais = true;
-              let totalCap = 0;
+  try {
+    const body = await req.json();
+    let { empresa_id, cnpj, uf = "SP", pfx_base64, pfx_senha, ult_nsu = "000000000000000", ambiente = "homologacao" } = body;
 
-        while (temMais) {
-                  const xmlResp = await consultarDFe(cnpj, uf, ultNSU, certPem, keyPem, ambiente);
-                  const { documentos, maxNSU, temMais: continua } = await processarRetorno(xmlResp, empresa_id);
-                  if (empresa_id) await salvarNoSupabase(empresa_id, documentos);
-                  totalCap += documentos.length;
-                  temMais = continua;
-                  ultNSU = maxNSU;
-                  if (!continua) break;
-        }
+    if (!cnpj) {
+      return NextResponse.json({ status: "erro", mensagem: "cnpj eh obrigatorio" }, { status: 400 });
+    }
 
-        return NextResponse.json({
-                  status: "OK",
-                  total: totalCap,
-                  ult_nsu: ultNSU,
-                  max_nsu: ultNSU,
-                  tem_mais: false,
-                  timestamp: new Date().toISOString(),
-        });
-      } catch (e) {
-              return NextResponse.json(
-                  { status: "erro", mensagem: (e as Error).message },
-                  { status: 500 }
-                      );
+    // Fallback: busca cert do Supabase se não veio no body
+    if (!pfx_base64 || !pfx_senha) {
+      if (empresa_id) {
+        const { data: cfg } = await supabase
+          .from("captura_sefaz_config")
+          .select("pfx_base64, pfx_senha")
+          .eq("empresa_id", empresa_id)
+          .maybeSingle();
+        if (cfg?.pfx_base64) pfx_base64 = cfg.pfx_base64;
+        if (cfg?.pfx_senha) pfx_senha = cfg.pfx_senha;
       }
+      if (!pfx_base64 || !pfx_senha) {
+        return NextResponse.json(
+          { status: "erro", mensagem: "Certificado A1 nao encontrado. Carregue o .pfx em /captura-sefaz e salve a configuracao." },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Valida o PFX via OpenSSL (não usa node-forge — suporta todos os algoritmos ICP-Brasil)
+    let pfxBuf: Buffer;
+    try {
+      pfxBuf = validarPfx(pfx_base64, pfx_senha);
+    } catch (e: any) {
+      return NextResponse.json(
+        { status: "erro", mensagem: `Certificado A1 invalido: ${e.message}. Verifique se a senha está correta e recarregue o .pfx em /captura-sefaz.` },
+        { status: 400 }
+      );
+    }
+
+    let ultNSU = ult_nsu;
+    let temMais = true;
+    let totalCap = 0;
+
+    while (temMais) {
+      const xmlResp = await consultarDFe(cnpj, uf, ultNSU, pfxBuf, pfx_senha, ambiente);
+      const { documentos, maxNSU, temMais: continua } = await processarRetorno(xmlResp, empresa_id);
+      if (empresa_id) await salvarNoSupabase(empresa_id, documentos);
+      totalCap += documentos.length;
+      temMais = continua;
+      ultNSU = maxNSU;
+      if (!continua) break;
+    }
+
+    return NextResponse.json({
+      status: "OK",
+      total: totalCap,
+      ult_nsu: ultNSU,
+      max_nsu: ultNSU,
+      tem_mais: false,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (e) {
+    return NextResponse.json({ status: "erro", mensagem: (e as Error).message }, { status: 500 });
+  }
 }
 
 export async function GET() {

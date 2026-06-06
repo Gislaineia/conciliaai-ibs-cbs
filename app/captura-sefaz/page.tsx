@@ -89,32 +89,11 @@ export default function CapturaSefazPage() {
     if (!f) return;
     setPfxNome(f.name);
     const r = new FileReader();
-    r.onload = async () => {
+    r.onload = () => {
       const base64 = ((r.result as string) || "").split(",")[1] ?? null;
       setPfxBase64(base64);
-      // Auto-salva imediatamente para não perder ao trocar de página
-      if (empresa && base64) {
-        try {
-          await saveCapturaSefaz({
-            id: empresa.id,
-            empresa_id: empresa.id,
-            certificado_a1_nome: f.name,
-            certificado_a1_validade: pfxVal || null,
-            certificado_a1_carregado: true,
-            webhook_ativo: webhookAtivo,
-            pooling_ativo: pollingAtivo,
-            pooling_intervalo_min: intervalo,
-            modo,
-            total_capturados: totalCap,
-            pfx_base64: base64,
-            pfx_senha: pfxSenha || null,
-            cnpj,
-            ambiente,
-            nfse_ativo: nfseAtivo,
-            ult_nsu: ultNSU,
-          });
-        } catch { /* falha silenciosa — usuário pode salvar manualmente */ }
-      }
+      // Não auto-salva — aguarda o usuário digitar a senha e clicar "Salvar configuração"
+      // para garantir que cert e senha sempre sejam salvos juntos e consistentes.
     };
     r.readAsDataURL(f);
   }
@@ -123,22 +102,24 @@ export default function CapturaSefazPage() {
     if (!empresa) return;
     setSalvando(true);
     try {
+      if (!pfxBase64 || !pfxSenha) {
+        novoLog(setLogs, "erro", "Carregue o certificado .pfx e informe a senha antes de salvar.");
+        setSalvando(false);
+        return;
+      }
       await saveCapturaSefaz({
         id: empresa.id,
         empresa_id: empresa.id,
         certificado_a1_nome: pfxNome !== "Nenhum ficheiro selecionado" ? pfxNome : null,
         certificado_a1_validade: pfxVal || null,
         certificado_a1_carregado: !!pfxBase64,
-                    pfx_base64: pfxBase64 ?? undefined,
-                    pfx_senha: pfxSenha || undefined,
+        pfx_base64: pfxBase64,
+        pfx_senha: pfxSenha,
         webhook_ativo: webhookAtivo,
         pooling_ativo: pollingAtivo,
         pooling_intervalo_min: intervalo,
         modo,
         total_capturados: totalCap,
-        // Salva conteúdo do certificado para persistir entre páginas
-        pfx_base64: pfxBase64 ?? null,
-        pfx_senha: pfxSenha || null,
         cnpj,
         ambiente,
         nfse_ativo: nfseAtivo,
