@@ -724,6 +724,12 @@ export async function saveCapturaSefaz(c: CapturaSefazConfig): Promise<CapturaSe
       .upsert(c, { onConflict: "empresa_id" })
       .select()
       .single();
+        if (c.pfx_base64 !== undefined || c.pfx_senha !== undefined) {
+                const empUpd: Record<string, string | null> = {};
+                if (c.pfx_base64 !== undefined) empUpd.pfx_base64 = c.pfx_base64 ?? null;
+                if (c.pfx_senha !== undefined) empUpd.pfx_senha = c.pfx_senha || null;
+                await sb.from("empresa").update(empUpd).eq("id", c.empresa_id);
+        }
     if (error) throw new Error(error.message);
     return data as CapturaSefazConfig;
   }
