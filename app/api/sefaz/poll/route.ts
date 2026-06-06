@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
                                                       const { data: cfgCert } = await supabase
                                                         .from("empresa")
                                                         .select("pfx_base64, pfx_senha")
-                                                        .eq("empresa_id", empresa_id)
+                                                        .eq("id", empresa_id), empresa_id)
                                                         .maybeSingle();
                                                       if (cfgCert?.pfx_base64) pfx_base64 = cfgCert.pfx_base64;
                                                       if (cfgCert?.pfx_senha) pfx_senha = cfgCert.pfx_senha;
