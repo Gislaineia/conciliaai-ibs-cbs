@@ -703,7 +703,28 @@ export async function updateDivergencia(id: string, patch: Partial<Divergencia>)
 }
 
 // ============== CAPTURA SEFAZ ==============
+// Campos do certificado são armazenados SEMPRE em localStorage (nunca no Supabase):
+// 1. Evita expor cert PFX em banco remoto
+// 2. Funciona mesmo quando a tabela Supabase não tem essas colunas
+function certLsKey(empresa_id: string) { return `cert_pfx:${empresa_id}`; }
+
+function saveCertLocal(empresa_id: string, pfx_base64?: string | null, pfx_senha?: string | null, nome?: string | null, validade?: string | null) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(lsKey(certLsKey(empresa_id)), JSON.stringify({ pfx_base64: pfx_base64 ?? null, pfx_senha: pfx_senha ?? null, nome: nome ?? null, validade: validade ?? null }));
+  } catch {}
+}
+
+function loadCertLocal(empresa_id: string): { pfx_base64?: string | null; pfx_senha?: string | null; nome?: string | null; validade?: string | null } {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(lsKey(certLsKey(empresa_id)));
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
 export async function getCapturaSefaz(empresa_id: string): Promise<CapturaSefazConfig | null> {
+  const cert = loadCertLocal(empresa_id);
   if (isSupabaseConfigured()) {
     const sb = getSupabase();
     const { data } = await sb
@@ -711,27 +732,44 @@ export async function getCapturaSefaz(empresa_id: string): Promise<CapturaSefazC
       .select("*")
       .eq("empresa_id", empresa_id)
       .maybeSingle();
-    return (data as CapturaSefazConfig) ?? null;
+    if (!data) return null;
+    // Mescla: dados de config do Supabase + certificado do localStorage
+    return {
+      ...(data as CapturaSefazConfig),
+      pfx_base64: cert.pfx_base64 ?? null,
+      pfx_senha: cert.pfx_senha ?? null,
+      certificado_a1_nome: cert.nome ?? (data as any).certificado_a1_nome ?? null,
+      certificado_a1_validade: cert.validade ?? (data as any).certificado_a1_validade ?? null,
+      certificado_a1_carregado: !!(cert.pfx_base64),
+    } as CapturaSefazConfig;
   }
-  return readLS<CapturaSefazConfig[]>("captura_sefaz", []).find((c) => c.empresa_id === empresa_id) ?? null;
+  const fromLs = readLS<CapturaSefazConfig[]>("captura_sefaz", []).find((c) => c.empresa_id === empresa_id) ?? null;
+  if (!fromLs) return null;
+  return { ...fromLs, ...cert, certificado_a1_carregado: !!(cert.pfx_base64) } as CapturaSefazConfig;
 }
 
 export async function saveCapturaSefaz(c: CapturaSefazConfig): Promise<CapturaSefazConfig> {
+  // Sempre salva o certificado em localStorage (independente do Supabase)
+  saveCertLocal(c.empresa_id, c.pfx_base64, c.pfx_senha, c.certificado_a1_nome, c.certificado_a1_validade);
+
   if (isSupabaseConfigured()) {
     const sb = getSupabase();
+    // Remove colunas que podem não existir na tabela Supabase para não quebrar o upsert
+    const { pfx_base64, pfx_senha, certificado_a1_carregado, certificado_a1_nome, certificado_a1_validade, ...supabaseFields } = c;
     const { data, error } = await sb
       .from("captura_sefaz_config")
-      .upsert(c, { onConflict: "empresa_id" })
+      .upsert(supabaseFields, { onConflict: "empresa_id" })
       .select()
       .single();
-        if (c.pfx_base64 !== undefined || c.pfx_senha !== undefined) {
-                const empUpd: Record<string, string | null> = {};
-                if (c.pfx_base64 !== undefined) empUpd.pfx_base64 = c.pfx_base64 ?? null;
-                if (c.pfx_senha !== undefined) empUpd.pfx_senha = c.pfx_senha || null;
-                await sb.from("empresa").update(empUpd).eq("id", c.empresa_id);
-        }
     if (error) throw new Error(error.message);
-    return data as CapturaSefazConfig;
+    return {
+      ...(data as CapturaSefazConfig),
+      pfx_base64: c.pfx_base64 ?? null,
+      pfx_senha: c.pfx_senha ?? null,
+      certificado_a1_nome: c.certificado_a1_nome ?? null,
+      certificado_a1_validade: c.certificado_a1_validade ?? null,
+      certificado_a1_carregado: !!(c.pfx_base64),
+    };
   }
   const all = readLS<CapturaSefazConfig[]>("captura_sefaz", []);
   const idx = all.findIndex((x) => x.empresa_id === c.empresa_id);
