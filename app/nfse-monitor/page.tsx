@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/app-context";
-import { getCapturaSefaz, saveCapturaSefaz } from "@/lib/storage";
+import { getCapturaSefaz } from "@/lib/storage";
 import {
   Card,
   CardContent,
@@ -26,16 +26,6 @@ import {
   CheckCircle2,
   XCircle,
 } from "lucide-react";
-
-interface NfseDoc {
-  id: string;
-  empresa_id: string;
-  chave_acesso: string;
-  schema: string;
-  sim: string;
-  importado_em: string;
-  parseado_em?: string | null;
-}
 
 interface AbrasfMunicipio {
   ibge: string;
@@ -64,7 +54,6 @@ export default function NfseMonitorPage() {
   const [ambiente, setAmbiente] = useState<"homologacao" | "producao">("homologacao");
 
   // ── Dados ──
-  const [docs, setDocs] = useState<NfseDoc[]>([]);
   const [historico, setHistorico] = useState<ConsultaRow[]>([]);
   const [municipios, setMunicipios] = useState<AbrasfMunicipio[]>([]);
 
@@ -145,6 +134,9 @@ export default function NfseMonitorPage() {
       const cfg = await getCapturaSefaz(empresa.id);
       if (cfg) {
         setAmbiente(((cfg as any).ambiente ?? "homologacao") as any);
+        // Restaura cert e senha salvos do localStorage (via /captura-sefaz)
+        if (cfg.pfx_base64) setPfxBase64(cfg.pfx_base64);
+        if (cfg.pfx_senha) setPfxSenha(cfg.pfx_senha);
       }
 
       // Documentos NFS-e ja capturados (filtramos schema=nfse no fetch direto)

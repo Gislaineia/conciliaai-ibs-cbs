@@ -738,14 +738,16 @@ export async function getCapturaSefaz(empresa_id: string): Promise<CapturaSefazC
         .maybeSingle();
       if (data) {
         // Supabase tem status/totais atualizados — localStorage tem cert e config local
+        const senha = cert.pfx_senha ?? fromLs?.pfx_senha ?? null;
+        const base64 = cert.pfx_base64 ?? fromLs?.pfx_base64 ?? null;
         return {
           ...(data as CapturaSefazConfig),
           ...(fromLs ?? {}),              // config local sobrescreve (tem cnpj, ambiente, etc.)
-          pfx_base64: cert.pfx_base64 ?? null,
-          pfx_senha: cert.pfx_senha ?? null,
-          certificado_a1_nome: cert.nome ?? null,
-          certificado_a1_validade: cert.validade ?? null,
-          certificado_a1_carregado: !!(cert.pfx_base64),
+          pfx_base64: base64,
+          pfx_senha: senha,
+          certificado_a1_nome: cert.nome ?? fromLs?.certificado_a1_nome ?? null,
+          certificado_a1_validade: cert.validade ?? fromLs?.certificado_a1_validade ?? null,
+          certificado_a1_carregado: !!(base64),
           // status/totais do Supabase prevalecem sobre localStorage
           total_capturados: (data as any).total_capturados ?? fromLs?.total_capturados ?? 0,
           ultimo_status: (data as any).ultimo_status ?? fromLs?.ultimo_status ?? null,
