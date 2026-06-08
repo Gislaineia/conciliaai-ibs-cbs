@@ -4,7 +4,7 @@ export type RegimeTributario =
   | "LUCRO_REAL"
   | "LUCRO_PRESUMIDO"
   | "SIMPLES_NACIONAL"
-  | "MEI";h
+  | "MEI";
 
 export type DirecaoDoc = "ENTRADA" | "SAIDA";
 export type TipoDoc = "NFe" | "CTe" | "NFSe";
