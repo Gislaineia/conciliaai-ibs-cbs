@@ -4,7 +4,7 @@ export type RegimeTributario =
   | "LUCRO_REAL"
   | "LUCRO_PRESUMIDO"
   | "SIMPLES_NACIONAL"
-  | "MEI";
+  | "MEI";h
 
 export type DirecaoDoc = "ENTRADA" | "SAIDA";
 export type TipoDoc = "NFe" | "CTe" | "NFSe";
@@ -381,7 +381,7 @@ export interface Divergencia {
 export interface CapturaSefazConfig {
   id: string;
   empresa_id: string;
-    ertificado_a1_nome?: string | null;
+  certificado_a1_nome?: string | null;
   certificado_a1_validade?: string | null;
   certificado_a1_carregado: boolean;
   // Certificado salvo localmente para sobreviver à troca de página
