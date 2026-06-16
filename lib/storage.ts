@@ -799,6 +799,14 @@ export async function saveCapturaSefaz(c: CapturaSefazConfig): Promise<CapturaSe
         total_capturados: c.total_capturados,
       };
       await sb.from("captura_sefaz_config").upsert(safeForSupabase, { onConflict: "empresa_id" });
+      // Espelha o certificado tambem na tabela empresa, pois rotas como
+      // /api/captura-tudo leem o PFX a partir de empresa.pfx_base64/pfx_senha.
+      if (c.pfx_base64 || c.pfx_senha) {
+        await sb
+          .from("empresa")
+          .update({ pfx_base64: c.pfx_base64 ?? null, pfx_senha: c.pfx_senha ?? null })
+          .eq("id", empresa_id);
+      }
     } catch { /* Supabase sem as colunas ou indisponível — dados já estão em localStorage */ }
   }
 
