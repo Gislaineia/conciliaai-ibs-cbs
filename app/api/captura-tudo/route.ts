@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
 
     // Fallback: se o certificado nao veio no corpo nem na tabela empresa,
     // busca em captura_sefaz_config (onde a tela /captura-sefaz salva o PFX).
-    if ((!pfx_base64 || !pfx_senha) && empresa_id) {
+    if ((!pfx_base64) && empresa_id) {
       const { data: certCfg } = await supabase()
         .from("captura_sefaz_config")
         .select("pfx_base64, pfx_senha")
@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!cnpj || !pfx_base64 || !pfx_senha) {
+    if (!cnpj || !pfx_base64) {
       return NextResponse.json(
         {
           status: "erro",
