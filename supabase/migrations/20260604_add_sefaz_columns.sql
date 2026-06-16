@@ -37,7 +37,8 @@ CREATE INDEX IF NOT EXISTS idx_docs_fiscais_schema  ON documentos_fiscais(schema
 
 -- RLS para documentos_fiscais
 ALTER TABLE documentos_fiscais ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS allow_all_docs_fiscais ON documentos_fiscais
+DROP POLICY IF EXISTS allow_all_docs_fiscais ON documentos_fiscais;
+CREATE POLICY allow_all_docs_fiscais ON documentos_fiscais
   FOR ALL USING (true) WITH CHECK (true);
 
 -- 4. Criar view de resumo para o dashboard
