@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import forge from "node-forge";
+import tls from "tls";
 import { XMLParser } from "fast-xml-parser";
 import { createClient } from "@supabase/supabase-js";
 import zlib from "zlib";
@@ -25,20 +25,16 @@ const ENDPOINT_DFE = {
       homologacao: "https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx",
 };
 
-function carregarCertificado(pfxBase64: string, senha: string) {
-      const pfx = forge.pkcs12.pkcs12FromAsn1(
-              forge.asn1.fromDer(forge.util.decode64(pfxBase64)), senha
-            );
-      const certBag = pfx.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag]![0];
-      const keyBag = pfx.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag })[forge.pki.oids.pkcs8ShroudedKeyBag]![0];
-      return {
-              certPem: forge.pki.certificateToPem(certBag.cert!),
-              keyPem: forge.pki.privateKeyToPem(keyBag.key as forge.pki.rsa.PrivateKey),
-      };
+// Valida o PFX usando OpenSSL nativo (suporta algoritmos modernos ICP-Brasil).
+function carregarCertificado(pfxBase64: string, senha: string): Buffer {
+  const pfxBuf = Buffer.from(pfxBase64, "base64");
+  // Lanca se a senha estiver incorreta ou o PFX for invalido.
+  tls.createSecureContext({ pfx: pfxBuf, passphrase: senha });
+  return pfxBuf;
 }
 
 async function pollEmpresa(cfg: any): Promise<{ capturas: number; erros: string[] }> {
-      const { certPem, keyPem } = carregarCertificado(cfg.pfx_base64, cfg.pfx_senha);
+      const pfxBuf = carregarCertificado(cfg.pfx_base64, cfg.pfx_senha);
       const ambiente: "producao" | "homologacao" = cfg.ambiente ?? "homologacao";
       const cUFAutor = UF_COD[cfg.uf?.toUpperCase()] ?? "35";
       let ultNSU: string = cfg.ult_nsu ?? "000000000000000";
@@ -49,8 +45,8 @@ async function pollEmpresa(cfg: any): Promise<{ capturas: number; erros: string[
 
   while (temMais) {
           const agent = new https.Agent({
-            cert: certPem,
-            key: keyPem,
+            pfx: pfxBuf,
+            passphrase: cfg.pfx_senha,
             rejectUnauthorized: true,
             minVersion: "TLSv1.2",
             ciphers: [
@@ -116,9 +112,9 @@ async function pollEmpresa(cfg: any): Promise<{ capturas: number; erros: string[
                         try {
                                       const buf = await gunzip(Buffer.from(doc["#text"] ?? doc, "base64"));
                                       const xml = buf.toString("utf-8");
-                                      const chave = xml.match(/chNFe[^>]*>([^<]{44})/)?.[1] ?? maxNSU;
+                                      const chave = xml.match(/ch(?:NFe|CTe)[^>]*>([^<]{44})/)?.[1] ?? maxNSU;
                                       await supabase.from("documentos_fiscais").upsert(
-                                          { empresa_id: cfg.empresa_id, chave_acesso: chave, xml, schema: "nfeProc", nsu: maxNSU },
+                                          { empresa_id: cfg.empresa_id, chave_acesso: chave, xml, schema: (xml.includes("cteProc") || xml.includes("<CTe")) ? "cteProc" : "nfeProc", nsu: maxNSU },
                                           { onConflict: "chave_acesso" }
                                                     );
                                       capturas++;
