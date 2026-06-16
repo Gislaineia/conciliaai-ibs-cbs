@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Fallback: busca cert do Supabase se não veio no body
-    if (!pfx_base64 || !pfx_senha) {
+    if (!pfx_base64) {
       if (empresa_id) {
         const { data: cfg } = await supabase()
           .from("captura_sefaz_config")
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
         if (cfg?.pfx_base64) pfx_base64 = cfg.pfx_base64;
         if (cfg?.pfx_senha) pfx_senha = cfg.pfx_senha;
       }
-      if (!pfx_base64 || !pfx_senha) {
+      if (!pfx_base64) {
         return NextResponse.json(
           { status: "erro", mensagem: "Certificado A1 nao encontrado. Carregue o .pfx em /captura-sefaz e salve a configuracao." },
           { status: 400 }
