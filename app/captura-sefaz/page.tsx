@@ -36,7 +36,7 @@ export default function CapturaSefazPage() {
   const [webhookAtivo, setWebhookAtivo] = useState(false);
   const [pollingAtivo, setPollingAtivo] = useState(false);
   const [intervalo, setIntervalo] = useState(60);
-  const [ambiente, setAmbiente] = useState<"homologacao" | "producao">("homologacao");
+  const [ambiente, setAmbiente] = useState<"homologacao" | "producao">("producao");
 
   // ── NFS-e ──
   const [nfseAtivo, setNfseAtivo] = useState(false);
@@ -66,7 +66,7 @@ export default function CapturaSefazPage() {
       setWebhookAtivo(c.webhook_ativo ?? false);
       setPollingAtivo(c.pooling_ativo ?? false);
       setIntervalo(c.pooling_intervalo_min ?? 60);
-      setAmbiente(c.ambiente ?? "homologacao");
+      setAmbiente(c.ambiente ?? "producao");
       setNfseAtivo(c.nfse_ativo ?? false);
       setUltNSU(c.ult_nsu ?? "000000000000000");
       setTotalCap(c.total_capturados ?? 0);
@@ -102,7 +102,7 @@ export default function CapturaSefazPage() {
     if (!empresa) return;
     setSalvando(true);
     try {
-      if (!pfxBase64 || !pfxSenha) {
+      if (!pfxBase64) {
         novoLog(setLogs, "erro", "Carregue o certificado .pfx e informe a senha antes de salvar.");
         setSalvando(false);
         return;
@@ -138,7 +138,7 @@ export default function CapturaSefazPage() {
     setRodando(true);
     novoLog(setLogs, "info", "Iniciando captura UNIFICADA: SEFAZ + NFS-e RFB + ABRASF...");
     try {
-      if (!pfxBase64 || !pfxSenha) {
+      if (!pfxBase64) {
         novoLog(setLogs, "erro", "Carregue o certificado .pfx e informe a senha antes de executar.");
         setRodando(false);
         return;
@@ -181,7 +181,7 @@ export default function CapturaSefazPage() {
   }, [empresa, ambiente, pfxBase64, pfxSenha]);
   const executarPoll = useCallback(async () => {
     if (execRef.current || !empresa) return;
-    if (!pfxBase64 || !pfxSenha) {
+    if (!pfxBase64) {
       novoLog(setLogs, "erro", "Carregue o certificado .pfx e informe a senha antes de executar.");
       return;
     }
@@ -246,7 +246,7 @@ export default function CapturaSefazPage() {
   }, [pollingAtivo, modo, intervalo, executarPoll]);
 
   async function executarNfse() {
-    if (!empresa || !pfxBase64 || !pfxSenha) {
+    if (!empresa || !pfxBase64) {
       novoLog(setLogs, "erro", "Certificado ou senha não informados.");
       return;
     }
