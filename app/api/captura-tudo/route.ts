@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     let cnpj: string | undefined = body.cnpj;
     let pfx_base64: string | undefined = body.pfx_base64;
     let pfx_senha: string | undefined = body.pfx_senha;
-    let codigo_municipio_ibge: string | undefined = body.codigo_municipio_ibge;
+    let cod_municipio_ibge: string | undefined = body.cod_municipio_ibge;
             let uf: string | undefined = body.uf;
 
     // Datas default: ultimos 30 dias
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
       try {
         const { data: emp } = await supabase()
           .from("empresa")
-          .select("id, cnpj, uf, pfx_base64, pfx_senha, ambiente, codigo_municipio_ibge")
+          .select("id, cnpj, uf, pfx_base64, pfx_senha, ambiente, cod_municipio_ibge")
           .eq("id", empresa_id)
           .maybeSingle();
         if (emp) {
@@ -88,11 +88,25 @@ export async function POST(req: NextRequest) {
           uf = uf ?? emp.uf;
           pfx_base64 = pfx_base64 ?? emp.pfx_base64;
           pfx_senha = pfx_senha ?? emp.pfx_senha;
-          codigo_municipio_ibge =
-            codigo_municipio_ibge ?? emp.codigo_municipio_ibge;
+          cod_municipio_ibge =
+            cod_municipio_ibge ?? emp.cod_municipio_ibge;
         }
       } catch {
         /* ignora — empresa pode nao estar no Supabase, usa dados do body */
+      }
+    }
+
+    // Fallback: se o certificado nao veio no corpo nem na tabela empresa,
+    // busca em captura_sefaz_config (onde a tela /captura-sefaz salva o PFX).
+    if ((!pfx_base64 || !pfx_senha) && empresa_id) {
+      const { data: certCfg } = await supabase()
+        .from("captura_sefaz_config")
+        .select("pfx_base64, pfx_senha")
+        .eq("empresa_id", empresa_id)
+        .maybeSingle();
+      if (certCfg) {
+        pfx_base64 = pfx_base64 ?? certCfg.pfx_base64;
+        pfx_senha = pfx_senha ?? certCfg.pfx_senha;
       }
     }
 
@@ -118,7 +132,7 @@ export async function POST(req: NextRequest) {
         : Array.from(
             new Set(
               [
-                codigo_municipio_ibge,
+                cod_municipio_ibge,
                 "3534401", // Osasco
                 "3505708", // Barueri
                 "3550308", // Sao Paulo capital
