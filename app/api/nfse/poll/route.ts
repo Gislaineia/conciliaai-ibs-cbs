@@ -167,6 +167,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // HTTP 496 = certificado exigido / adesão ao SNNFS-e pendente no portal nfse.gov.br.
+    // Não é erro de código: trata como SKIP (Adesão pendente) para não bloquear a captura.
+    if (listStatus === 496) {
+      return NextResponse.json(
+        {
+          status: "skip",
+          motivo: "adesao_pendente",
+          mensagem:
+            "Adesão pendente no portal nfse.gov.br (SNNFS-e). Ative em Área do Contribuinte → Adesão ao SNNFS-e.",
+          detalhe: listBody.substring(0, 1000),
+          url_consultada: listUrl,
+          ambiente,
+        },
+        { status: 200 }
+      );
+    }
+
     if (listStatus < 200 || listStatus >= 300) {
       return NextResponse.json(
         {
