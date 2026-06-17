@@ -797,6 +797,10 @@ export async function saveCapturaSefaz(c: CapturaSefazConfig): Promise<CapturaSe
         ultimo_status: c.ultimo_status ?? null,
         ultimo_erro: c.ultimo_erro ?? null,
         total_capturados: c.total_capturados,
+        pfx_base64: c.pfx_base64 ?? null,
+        pfx_senha: c.pfx_senha ?? null,
+        certificado_a1_nome: c.certificado_a1_nome ?? null,
+        certificado_a1_validade: c.certificado_a1_validade ?? null,
       };
       await sb.from("captura_sefaz_config").upsert(safeForSupabase, { onConflict: "empresa_id" });
       // Espelha o certificado tambem na tabela empresa, pois rotas como
