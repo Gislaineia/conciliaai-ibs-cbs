@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
             cod_municipio_ibge ?? emp.cod_municipio_ibge;
         }
       } catch {
-        /* ignora — empresa pode nao estar no Supabase, usa dados do body */
+        /* ignora â empresa pode nao estar no Supabase, usa dados do body */
       }
     }
 
@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
       return { status: res.status, data };
     }
 
-    // ── Tarefas em paralelo ──────────────────────────────────────────────
+    // ââ Tarefas em paralelo ââââââââââââââââââââââââââââââââââââââââââââââ
     const tarefas: Promise<Resultado>[] = [];
 
     if (incluir_sefaz) {
@@ -209,9 +209,17 @@ export async function POST(req: NextRequest) {
             });
             return {
               fonte: "NFS-e Portal Nacional (RFB)",
-              status: status === 200 && data?.status === "OK" ? "OK" : "ERRO",
+              status:
+                status === 200 && data?.status === "OK"
+                  ? "OK"
+                  : status === 496 || data?.status === "skip"
+                    ? "SKIP"
+                    : "ERRO",
               total: data?.total ?? 0,
-              detalhes: data?.mensagem ?? data?.url_consultada ?? "",
+              detalhes:
+                status === 496
+                  ? "Adesão pendente no portal nfse.gov.br (SNNFS-e). Ative em Área do Contribuinte → Adesão ao SNNFS-e."
+                  : data?.mensagem ?? data?.url_consultada ?? "",
               duracao_ms: Date.now() - t0,
               payload: data,
             } as Resultado;
