@@ -25,6 +25,7 @@ import {
   Stethoscope,
   CheckCircle2,
   XCircle,
+  AlertTriangle,
 } from "lucide-react";
 
 interface AbrasfMunicipio {
@@ -377,11 +378,17 @@ export default function NfseMonitorPage() {
                   <div
                     key={i}
                     className={`flex items-start gap-2 p-2 rounded text-xs border ${
-                      f.status === "OK" ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"
+                      f.status === "OK"
+                        ? "border-green-200 bg-green-50"
+                        : f.status === "SKIP"
+                          ? "border-yellow-200 bg-yellow-50"
+                          : "border-red-200 bg-red-50"
                     }`}
                   >
                     {f.status === "OK" ? (
                       <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                    ) : f.status === "SKIP" ? (
+                      <AlertTriangle className="h-4 w-4 text-yellow-600 flex-shrink-0 mt-0.5" />
                     ) : (
                       <XCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
                     )}
