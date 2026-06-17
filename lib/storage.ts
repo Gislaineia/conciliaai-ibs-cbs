@@ -805,7 +805,7 @@ export async function saveCapturaSefaz(c: CapturaSefazConfig): Promise<CapturaSe
         await sb
           .from("empresa")
           .update({ pfx_base64: c.pfx_base64 ?? null, pfx_senha: c.pfx_senha ?? null })
-          .eq("id", empresa_id);
+          .eq("id", c.empresa_id);
       }
     } catch { /* Supabase sem as colunas ou indisponível — dados já estão em localStorage */ }
   }
